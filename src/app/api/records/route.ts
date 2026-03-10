@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getClockRecords, enrichRecords, getRateSettings, getSpecialConditions } from '@/lib/db';
-import { paginate, calculateSalary, getSpecialMultiplier } from '@/lib/utils';
+import { paginate, calculateSalary, getSpecialMultiplier, calculateNurseSalary } from '@/lib/utils';
 
 export async function GET(request: Request) {
   try {
@@ -37,7 +37,8 @@ export async function GET(request: Request) {
 
     const withSalary = enriched.map(r => {
       const multiplier = getSpecialMultiplier(r.clockInTime, r.clockOutTime, specialConditions);
-      const calculatedSalary = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
+      const billing = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
+      const calculatedSalary = calculateNurseSalary(billing); // 員工看到的是特護薪資(90%)
       return { ...r, calculatedSalary, multiplier };
     });
 

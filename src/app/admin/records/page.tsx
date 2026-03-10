@@ -15,6 +15,8 @@ interface EnrichedRecord {
   clockOutTime: string | null;
   salary: number;
   calculatedSalary?: number;
+  billing?: number;
+  nurseSalary?: number;
   multiplier?: number;
   userId: string;
   caseId: string;
@@ -231,7 +233,8 @@ export default function AdminRecordsPage() {
             <th>下班經緯度</th>
             <th>上班時間</th>
             <th>下班時間</th>
-            <th>薪資</th>
+            <th>請款金額</th>
+            <th>特護薪資</th>
             <th>倍率</th>
             <th>操作</th>
           </tr>
@@ -246,7 +249,8 @@ export default function AdminRecordsPage() {
               <td className="text-xs"><CoordsLink lat={r.clockOutLat} lng={r.clockOutLng} /></td>
               <td>{formatDT(r.clockInTime)}</td>
               <td>{formatDT(r.clockOutTime)}</td>
-              <td className="font-bold text-green-700">{r.calculatedSalary ?? r.salary}</td>
+              <td className="font-bold text-blue-700">{r.billing ?? r.calculatedSalary ?? r.salary}</td>
+              <td className="font-bold text-green-700">{r.nurseSalary ?? ''}</td>
               <td>{r.multiplier && r.multiplier > 1 ? <span className="text-red-600 font-bold">{r.multiplier}x</span> : ''}</td>
               <td>
                 <div className="flex gap-1 justify-center">
@@ -257,10 +261,10 @@ export default function AdminRecordsPage() {
             </tr>
           ))}
           {loading && (
-            <tr><td colSpan={10} className="py-8 text-gray-400">載入中...</td></tr>
+            <tr><td colSpan={11} className="py-8 text-gray-400">載入中...</td></tr>
           )}
           {!loading && records.length === 0 && (
-            <tr><td colSpan={10} className="py-8 text-gray-400">尚無紀錄</td></tr>
+            <tr><td colSpan={11} className="py-8 text-gray-400">尚無紀錄</td></tr>
           )}
         </tbody>
       </table>
@@ -310,7 +314,7 @@ export default function AdminRecordsPage() {
                 <input type="datetime-local" value={formData.clockOutTime} onChange={e => setFormData({...formData, clockOutTime: e.target.value})} className="w-full px-2 py-1.5 border rounded text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">薪資</label>
+                <label className="block text-sm font-medium mb-1">請款金額</label>
                 <input type="number" value={formData.salary} onChange={e => setFormData({...formData, salary: e.target.value})} className="w-full px-2 py-1.5 border rounded text-sm" />
               </div>
             </div>

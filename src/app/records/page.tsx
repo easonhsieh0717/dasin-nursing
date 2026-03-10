@@ -112,7 +112,7 @@ export default function RecordsPage() {
               <th>下班經緯度</th>
               <th>上班時間</th>
               <th>下班時間</th>
-              <th>薪資</th>
+              <th>特護薪資</th>
               <th>倍率</th>
             </tr>
           </thead>

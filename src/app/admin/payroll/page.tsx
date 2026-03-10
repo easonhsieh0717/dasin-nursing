@@ -5,6 +5,7 @@ import { useState, useRef } from 'react';
 interface PayrollItem {
   name: string;
   userId: string;
+  totalBilling: number;
   totalSalary: number;
   shifts: number;
   bank: string;
@@ -16,6 +17,7 @@ interface PayrollItem {
 interface PayrollData {
   summary: PayrollItem[];
   totalAmount: number;
+  totalBilling: number;
   postOfficeCount: number;
   postOfficeAmount: number;
   bankCount: number;
@@ -235,11 +237,16 @@ export default function PayrollPage() {
       {data && (
         <>
           {/* Stats overview */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-green-500">
-              <div className="text-sm text-gray-500">發放總額</div>
-              <div className="text-xl sm:text-2xl font-bold text-green-700">NT$ {Math.floor(data.totalAmount).toLocaleString()}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
+            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-500">
+              <div className="text-sm text-gray-500">請款總額</div>
+              <div className="text-lg sm:text-xl font-bold text-blue-700">NT$ {Math.floor(data.totalBilling || 0).toLocaleString()}</div>
               <div className="text-xs text-gray-400">{data.summary.length} 位特護</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-green-500">
+              <div className="text-sm text-gray-500">發放總額（特護薪資 90%）</div>
+              <div className="text-xl sm:text-2xl font-bold text-green-700">NT$ {Math.floor(data.totalAmount).toLocaleString()}</div>
+              <div className="text-xs text-gray-400">公司利潤：NT$ {Math.floor((data.totalBilling || 0) - data.totalAmount).toLocaleString()}</div>
             </div>
             <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-red-400">
               <div className="text-sm text-gray-500">郵局</div>
@@ -286,7 +293,8 @@ export default function PayrollPage() {
                       <th>戶名</th>
                       <th>帳號</th>
                       <th>班數</th>
-                      <th>金額</th>
+                      <th>請款金額</th>
+                      <th>特護薪資</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -296,6 +304,7 @@ export default function PayrollPage() {
                         <td>{item.accountName || item.name}</td>
                         <td className="font-mono text-xs">{item.accountNo || '-'}</td>
                         <td>{item.shifts}</td>
+                        <td className="text-blue-700">NT$ {Math.floor(item.totalBilling || 0).toLocaleString()}</td>
                         <td className="font-bold text-green-700">NT$ {Math.floor(item.totalSalary).toLocaleString()}</td>
                       </tr>
                     ))}
@@ -318,7 +327,8 @@ export default function PayrollPage() {
                       <th>帳號</th>
                       <th>戶名</th>
                       <th>班數</th>
-                      <th>金額</th>
+                      <th>請款金額</th>
+                      <th>特護薪資</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -329,6 +339,7 @@ export default function PayrollPage() {
                         <td className="font-mono text-xs">{item.accountNo || '-'}</td>
                         <td>{item.accountName || item.name}</td>
                         <td>{item.shifts}</td>
+                        <td className="text-blue-700">NT$ {Math.floor(item.totalBilling || 0).toLocaleString()}</td>
                         <td className="font-bold text-green-700">NT$ {Math.floor(item.totalSalary).toLocaleString()}</td>
                       </tr>
                     ))}

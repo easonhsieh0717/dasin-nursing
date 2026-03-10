@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
       const clockOutTime = new Date().toISOString();
 
-      // 計算薪資並存入資料庫
+      // 計算請款金額並存入資料庫（salary 欄位存的是客戶請款金額，特護薪資 = 請款 × 0.9，在顯示時計算）
       let salary = 0;
       try {
         const allRates = await getRateSettings(session.orgId);

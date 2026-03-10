@@ -1,4 +1,13 @@
 // ===== 薪資計算 =====
+
+/** 特護薪資比率：薪資 = 請款金額 × NURSE_SALARY_RATIO（公司抽成 10%） */
+export const NURSE_SALARY_RATIO = 0.9;
+
+/** 從請款金額計算特護薪資 */
+export function calculateNurseSalary(billing: number): number {
+  return Math.round(billing * NURSE_SALARY_RATIO);
+}
+
 interface SpecialConditionForCalc {
   multiplier: number;
   startTime: string;

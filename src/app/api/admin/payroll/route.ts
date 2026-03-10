@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getClockRecords, enrichRecords, getRateSettings, getSpecialConditions, getUsers } from '@/lib/db';
-import { calculateSalary, getSpecialMultiplier } from '@/lib/utils';
+import { calculateSalary, getSpecialMultiplier, calculateNurseSalary } from '@/lib/utils';
 
 export async function GET(request: Request) {
   try {
@@ -34,27 +34,30 @@ export async function GET(request: Request) {
     const { users } = await getUsers(session.orgId);
     const userMap = new Map(users.map(u => [u.id, u]));
 
-    // 計算每筆薪資
+    // 計算每筆請款金額和特護薪資
     const computed = enriched.map(r => {
       const multiplier = getSpecialMultiplier(r.clockInTime, r.clockOutTime, specialConditions);
-      const salary = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
-      return { ...r, salary, multiplier };
+      const billing = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
+      const nurseSalary = calculateNurseSalary(billing);
+      return { ...r, billing, nurseSalary, multiplier };
     });
 
     // 按特護彙總
-    const summaryMap = new Map<string, { name: string; userId: string; totalSalary: number; shifts: number; bank: string; accountNo: string; accountName: string; isPostOffice: boolean }>();
+    const summaryMap = new Map<string, { name: string; userId: string; totalBilling: number; totalSalary: number; shifts: number; bank: string; accountNo: string; accountName: string; isPostOffice: boolean }>();
 
     for (const r of computed) {
       const existing = summaryMap.get(r.userId);
       const user = userMap.get(r.userId);
       if (existing) {
-        existing.totalSalary += r.salary;
+        existing.totalBilling += r.billing;
+        existing.totalSalary += r.nurseSalary;
         existing.shifts += 1;
       } else {
         summaryMap.set(r.userId, {
           name: r.userName,
           userId: r.userId,
-          totalSalary: r.salary,
+          totalBilling: r.billing,
+          totalSalary: r.nurseSalary,
           shifts: 1,
           bank: user?.bank || '',
           accountNo: user?.accountNo || '',
@@ -66,12 +69,14 @@ export async function GET(request: Request) {
 
     const summary = Array.from(summaryMap.values());
     const totalAmount = summary.reduce((sum, s) => sum + s.totalSalary, 0);
+    const totalBilling = summary.reduce((sum, s) => sum + s.totalBilling, 0);
     const postOfficeItems = summary.filter(s => s.isPostOffice);
     const bankItems = summary.filter(s => !s.isPostOffice);
 
     return NextResponse.json({
       summary,
       totalAmount,
+      totalBilling,
       postOfficeCount: postOfficeItems.length,
       postOfficeAmount: postOfficeItems.reduce((sum, s) => sum + s.totalSalary, 0),
       bankCount: bankItems.length,

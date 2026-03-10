@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getClockRecords, enrichRecords, createClockRecord, updateClockRecord, deleteClockRecord, getRateSettings, getSpecialConditions } from '@/lib/db';
-import { paginate, calculateSalary, getSpecialMultiplier } from '@/lib/utils';
+import { paginate, calculateSalary, getSpecialMultiplier, calculateNurseSalary } from '@/lib/utils';
 
 export async function GET(request: Request) {
   try {
@@ -46,8 +46,9 @@ export async function GET(request: Request) {
 
     const withSalary = enriched.map(r => {
       const multiplier = getSpecialMultiplier(r.clockInTime, r.clockOutTime, specialConditions);
-      const calculatedSalary = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
-      return { ...r, calculatedSalary, multiplier };
+      const billing = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
+      const nurseSalary = calculateNurseSalary(billing);
+      return { ...r, calculatedSalary: billing, billing, nurseSalary, multiplier };
     });
 
     const result = paginate(withSalary, page, pageSize);

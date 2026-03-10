@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getClockRecords, enrichRecords, getRateSettings, getSpecialConditions } from '@/lib/db';
-import { formatDateTime, formatCoords, calculateHours, calculateSalary, getSpecialMultiplier, getDayNightHours } from '@/lib/utils';
+import { formatDateTime, formatCoords, calculateHours, calculateSalary, getSpecialMultiplier, getDayNightHours, calculateNurseSalary } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 
 /** 格式化時間為 HHmm (e.g. "0900") */
@@ -56,14 +56,15 @@ export async function GET(request: Request) {
     return ta - tb;
   });
 
-  // 計算每筆薪資 + 日夜班時數
+  // 計算每筆請款金額 + 特護薪資 + 日夜班時數
   const computed = sorted.map(r => {
     const multiplier = getSpecialMultiplier(r.clockInTime, r.clockOutTime, specialConditions);
-    const salary = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
+    const billing = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
+    const nurseSalary = calculateNurseSalary(billing);
     const { dayHours, nightHours } = getDayNightHours(r.clockInTime, r.clockOutTime);
     const timeRange = `${fmtTime(r.clockInTime)}-${fmtTime(r.clockOutTime)}`;
     const date = fmtDate(r.clockInTime);
-    return { ...r, salary, multiplier, timeRange, date, dayHours, nightHours };
+    return { ...r, billing, nurseSalary, multiplier, timeRange, date, dayHours, nightHours };
   });
 
   const wb = XLSX.utils.book_new();
@@ -80,13 +81,14 @@ export async function GET(request: Request) {
     '工時(小時)': calculateHours(r.clockInTime, r.clockOutTime),
     '日班時數': r.dayHours,
     '夜班時數': r.nightHours,
-    '薪資': r.salary,
+    '請款金額': r.billing,
+    '特護薪資': r.nurseSalary,
     '倍率': r.multiplier > 1 ? `${r.multiplier}x` : '',
   }));
   const wsDetail = XLSX.utils.json_to_sheet(detailRows);
   wsDetail['!cols'] = [
     { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 30 },
-    { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 8 },
+    { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 8 },
   ];
   XLSX.utils.book_append_sheet(wb, wsDetail, '打卡紀錄');
 
@@ -101,7 +103,7 @@ export async function GET(request: Request) {
   wsSign['!cols'] = [{ wch: 15 }, { wch: 10 }, { wch: 14 }, { wch: 12 }];
   XLSX.utils.book_append_sheet(wb, wsSign, '簽到表');
 
-  // ========== Sheet 3: 請款明細 + 薪資彙總 ==========
+  // ========== Sheet 3: 請款明細（給客戶看） ==========
   const invoiceRows: Record<string, string | number>[] = computed.map(r => ({
     '個案': r.caseName,
     '日期': r.date,
@@ -109,11 +111,11 @@ export async function GET(request: Request) {
     '簽到人': r.userName,
     '日班h': r.dayHours,
     '夜班h': r.nightHours,
-    '金額': r.salary,
+    '請款金額': r.billing,
   }));
 
   // 總和行
-  const totalSalary = computed.reduce((sum, r) => sum + r.salary, 0);
+  const totalBilling = computed.reduce((sum, r) => sum + r.billing, 0);
   invoiceRows.push({
     '個案': '總和',
     '日期': '',
@@ -121,35 +123,55 @@ export async function GET(request: Request) {
     '簽到人': '',
     '日班h': '',
     '夜班h': '',
-    '金額': totalSalary,
+    '請款金額': totalBilling,
   });
 
   const wsInvoice = XLSX.utils.json_to_sheet(invoiceRows);
-  wsInvoice['!cols'] = [{ wch: 15 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 10 }];
+  wsInvoice['!cols'] = [{ wch: 15 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 12 }];
 
-  // 空兩行後加薪資彙總
+  // 空兩行後加彙總
   const summaryStartRow = invoiceRows.length + 3;
 
   // 按特護彙總（用 userId 避免同名合併錯誤）
-  const nurseSalaryMap = new Map<string, { name: string; salary: number }>();
+  const nurseSummaryMap = new Map<string, { name: string; billing: number; nurseSalary: number }>();
   for (const r of computed) {
-    const existing = nurseSalaryMap.get(r.userId);
+    const existing = nurseSummaryMap.get(r.userId);
     if (existing) {
-      existing.salary += r.salary;
+      existing.billing += r.billing;
+      existing.nurseSalary += r.nurseSalary;
     } else {
-      nurseSalaryMap.set(r.userId, { name: r.userName, salary: r.salary });
+      nurseSummaryMap.set(r.userId, { name: r.userName, billing: r.billing, nurseSalary: r.nurseSalary });
     }
   }
 
   const summaryData: (string | number)[][] = [
-    ['特護', '薪資', '費用', '總計'],
+    ['特護', '請款金額', '特護薪資(90%)', '總計'],
   ];
-  for (const [, { name, salary: sal }] of nurseSalaryMap) {
-    summaryData.push([name, sal, '', sal]);
+  for (const [, { name, billing: bil, nurseSalary: ns }] of nurseSummaryMap) {
+    summaryData.push([name, bil, ns, ns]);
   }
 
   XLSX.utils.sheet_add_aoa(wsInvoice, summaryData, { origin: { r: summaryStartRow, c: 0 } });
   XLSX.utils.book_append_sheet(wb, wsInvoice, '請款明細');
+
+  // ========== Sheet 4: 薪資發放 ==========
+  const payrollRows: Record<string, string | number>[] = [];
+  for (const [, { name, billing: bil, nurseSalary: ns }] of nurseSummaryMap) {
+    payrollRows.push({
+      '特護姓名': name,
+      '請款金額': bil,
+      '特護薪資(90%)': ns,
+    });
+  }
+  const totalNurseSalary = computed.reduce((sum, r) => sum + r.nurseSalary, 0);
+  payrollRows.push({
+    '特護姓名': '合計',
+    '請款金額': totalBilling,
+    '特護薪資(90%)': totalNurseSalary,
+  });
+  const wsPayroll = XLSX.utils.json_to_sheet(payrollRows);
+  wsPayroll['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(wb, wsPayroll, '薪資發放');
 
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
