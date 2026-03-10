@@ -1,8 +1,22 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getClockRecords, enrichRecords, getRateSettings, getSpecialConditions } from '@/lib/db';
-import { formatDateTime, formatCoords, calculateHours, calculateSalary, getSpecialMultiplier } from '@/lib/utils';
+import { calculateSalary, getSpecialMultiplier } from '@/lib/utils';
 import * as XLSX from 'xlsx';
+
+/** 格式化時間為 HHmm (e.g. "0900") */
+function fmtTime(dateStr: string | null): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0');
+}
+
+/** 格式化日期為 MM/DD */
+function fmtDate(dateStr: string | null): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0');
+}
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -24,48 +38,88 @@ export async function GET(request: Request) {
   });
   const enriched = await enrichRecords(records);
 
-  // 取得最新費率設定（依生效日期排序取最新）
+  // 取得最新費率設定
   const allRates = await getRateSettings(session.orgId);
   const latestRate = allRates.sort((a, b) =>
     new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime()
   )[0];
-
-  // 取得所有特殊狀況
   const specialConditions = await getSpecialConditions(session.orgId);
 
-  // 預設費率（無設定時使用）
   const dayRate = latestRate?.mainDayRate ?? 490;
   const nightRate = latestRate?.mainNightRate ?? 530;
 
-  const rows = enriched.map(r => {
-    // 計算特殊倍率
-    const multiplier = getSpecialMultiplier(r.clockInTime, r.clockOutTime, specialConditions);
-    // 自動計算薪資
-    const calculatedSalary = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
+  // 按上班時間排序
+  const sorted = [...enriched].sort((a, b) => {
+    const ta = a.clockInTime ? new Date(a.clockInTime).getTime() : 0;
+    const tb = b.clockInTime ? new Date(b.clockInTime).getTime() : 0;
+    return ta - tb;
+  });
 
-    return {
-      '個案名稱': r.caseName,
-      '特護名稱': r.userName,
-      '上班經緯度': formatCoords(r.clockInLat, r.clockInLng),
-      '下班經緯度': formatCoords(r.clockOutLat, r.clockOutLng),
-      '上班時間': formatDateTime(r.clockInTime),
-      '下班時間': formatDateTime(r.clockOutTime),
-      '工時(小時)': calculateHours(r.clockInTime, r.clockOutTime),
-      '薪資': calculatedSalary,
-      '倍率': multiplier > 1 ? `${multiplier}x` : '',
-    };
+  // 計算每筆薪資
+  const computed = sorted.map(r => {
+    const multiplier = getSpecialMultiplier(r.clockInTime, r.clockOutTime, specialConditions);
+    const salary = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
+    const timeRange = `${fmtTime(r.clockInTime)}-${fmtTime(r.clockOutTime)}`;
+    const date = fmtDate(r.clockInTime);
+    return { ...r, salary, multiplier, timeRange, date };
   });
 
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(rows);
 
-  // Set column widths
-  ws['!cols'] = [
-    { wch: 15 }, { wch: 10 }, { wch: 30 }, { wch: 30 },
-    { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 10 }, { wch: 8 },
+  // ========== Sheet 1: 簽到表 ==========
+  const signRows = computed.map(r => ({
+    '日期': r.date,
+    '時間': r.timeRange,
+    '簽到人': r.userName,
+  }));
+  const ws1 = XLSX.utils.json_to_sheet(signRows);
+  ws1['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, ws1, '簽到表');
+
+  // ========== Sheet 2: 請款明細 + 薪資彙總 ==========
+  const invoiceRows: Record<string, string | number>[] = computed.map(r => ({
+    '日期': r.date,
+    '時間': r.timeRange,
+    '簽到人': r.userName,
+    '金額': r.salary,
+  }));
+
+  // 總和行
+  const totalSalary = computed.reduce((sum, r) => sum + r.salary, 0);
+  invoiceRows.push({
+    '日期': '總和',
+    '時間': '',
+    '簽到人': '',
+    '金額': totalSalary,
+  });
+
+  const ws2 = XLSX.utils.json_to_sheet(invoiceRows);
+  ws2['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
+
+  // 空兩行後加薪資彙總
+  const summaryStartRow = invoiceRows.length + 3; // +1 header +1 data rows + 1 blank
+
+  // 薪資彙總表頭
+  const summaryHeader = { '特護': '特護', '薪資': '薪資', '費用': '費用', '總計': '總計' };
+  // 按特護彙總
+  const nurseSalaryMap = new Map<string, number>();
+  for (const r of computed) {
+    nurseSalaryMap.set(r.userName, (nurseSalaryMap.get(r.userName) || 0) + r.salary);
+  }
+
+  // 手動寫入薪資彙總到同一個 sheet
+  const summaryData: (string | number)[][] = [
+    ['特護', '薪資', '費用', '總計'],
   ];
+  for (const [name, sal] of nurseSalaryMap) {
+    summaryData.push([name, sal, '', sal]);
+  }
 
-  XLSX.utils.book_append_sheet(wb, ws, '打卡紀錄');
+  // 寫入彙總到 sheet2 的指定位置
+  XLSX.utils.sheet_add_aoa(ws2, summaryData, { origin: { r: summaryStartRow, c: 0 } });
+
+  XLSX.utils.book_append_sheet(wb, ws2, '請款明細');
+
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
   return new NextResponse(buf, {
