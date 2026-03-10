@@ -77,6 +77,10 @@ export default function PayrollPage() {
       .toolbar button { padding: 8px 24px; margin: 0 8px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: bold; }
       .btn-print { background: #1565c0; color: white; }
       .btn-close { background: #757575; color: white; }
+      @media (max-width: 600px) {
+        .toolbar { padding: 12px 10px; }
+        .toolbar button { display: block; width: 90%; margin: 8px auto; padding: 14px 0; font-size: 18px; }
+      }
       @media print { .slip { border: none; } .toolbar { display: none; } }
     </style></head><body>
     <div class="toolbar">
@@ -167,6 +171,10 @@ export default function PayrollPage() {
       .toolbar button { padding: 8px 24px; margin: 0 8px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: bold; }
       .btn-print { background: #1565c0; color: white; }
       .btn-close { background: #757575; color: white; }
+      @media (max-width: 600px) {
+        .toolbar { padding: 12px 10px; }
+        .toolbar button { display: block; width: 90%; margin: 8px auto; padding: 14px 0; font-size: 18px; }
+      }
       @media print { .toolbar { display: none; } body { padding-top: 20mm; } }
     </style></head><body>
     <div class="toolbar">

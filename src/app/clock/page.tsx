@@ -8,21 +8,7 @@ export default function ClockPage() {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
   const [loading, setLoading] = useState(false);
-  const [cases, setCases] = useState<Array<{ id: string; name: string }>>([]);
-  const [selectedCase, setSelectedCase] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
-
-  useEffect(() => {
-    fetch('/api/cases')
-      .then(r => r.json())
-      .then(d => {
-        if (d.data) {
-          setCases(d.data);
-          if (d.data.length > 0) setSelectedCase(d.data[0].id);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   // 即時時鐘
   useEffect(() => {
@@ -58,7 +44,6 @@ export default function ClockPage() {
           type,
           lat: location?.lat,
           lng: location?.lng,
-          caseId: selectedCase,
         }),
       });
 
@@ -127,27 +112,6 @@ export default function ClockPage() {
             {['日','一','二','三','四','五','六'][currentTime.getDay()]}
           </div>
         </div>
-
-        {/* Case selector */}
-        {cases.length > 0 && (
-          <div className="mb-6">
-            {cases.length === 1 ? (
-              <div className="px-4 py-2 text-base text-gray-700 font-medium bg-white border rounded-lg">
-                {cases[0].name}
-              </div>
-            ) : (
-              <select
-                value={selectedCase}
-                onChange={(e) => setSelectedCase(e.target.value)}
-                className="px-4 py-2 border rounded-lg text-base bg-white"
-              >
-                {cases.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            )}
-          </div>
-        )}
 
         {/* Clock buttons — 圓形設計 */}
         <div className="flex items-center justify-center gap-8 sm:gap-16">
