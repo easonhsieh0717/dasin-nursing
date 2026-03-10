@@ -67,16 +67,22 @@ export default function AdminRecordsPage() {
     clockInLat: '', clockInLng: '', clockOutLat: '', clockOutLng: '', salary: '0'
   });
 
+  // Committed search values（按搜尋按鈕時才更新，避免打字時自動刷新）
+  const [searchFilters, setSearchFilters] = useState({
+    startTime: '', endTime: '', clockType: 'in' as 'in' | 'out',
+    settlementType: '', caseCode: '', caseName: '', userName: '',
+  });
+
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), pageSize: '10' });
-    if (startTime) params.set('startTime', startTime);
-    if (endTime) params.set('endTime', endTime);
-    if (clockType) params.set('clockType', clockType);
-    if (settlementType) params.set('settlementType', settlementType);
-    if (caseCode) params.set('caseCode', caseCode);
-    if (caseName) params.set('caseName', caseName);
-    if (userName) params.set('userName', userName);
+    if (searchFilters.startTime) params.set('startTime', searchFilters.startTime);
+    if (searchFilters.endTime) params.set('endTime', searchFilters.endTime);
+    if (searchFilters.clockType) params.set('clockType', searchFilters.clockType);
+    if (searchFilters.settlementType) params.set('settlementType', searchFilters.settlementType);
+    if (searchFilters.caseCode) params.set('caseCode', searchFilters.caseCode);
+    if (searchFilters.caseName) params.set('caseName', searchFilters.caseName);
+    if (searchFilters.userName) params.set('userName', searchFilters.userName);
 
     const res = await fetch(`/api/admin/records?${params}`);
     const data = await res.json();
@@ -84,9 +90,14 @@ export default function AdminRecordsPage() {
     setTotalPages(data.totalPages || 1);
     setTotal(data.total || 0);
     setLoading(false);
-  }, [page, startTime, endTime, clockType, settlementType, caseCode, caseName, userName]);
+  }, [page, searchFilters]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
+
+  const handleSearch = () => {
+    setSearchFilters({ startTime, endTime, clockType, settlementType, caseCode, caseName, userName });
+    setPage(1);
+  };
 
   useEffect(() => {
     fetch('/api/admin/nurses?all=true').then(r => r.json()).then(d => setNurses(d.data || []));
@@ -95,13 +106,13 @@ export default function AdminRecordsPage() {
 
   const handleExport = () => {
     const params = new URLSearchParams();
-    if (startTime) params.set('startTime', startTime);
-    if (endTime) params.set('endTime', endTime);
-    if (clockType) params.set('clockType', clockType);
-    if (settlementType) params.set('settlementType', settlementType);
-    if (caseCode) params.set('caseCode', caseCode);
-    if (caseName) params.set('caseName', caseName);
-    if (userName) params.set('userName', userName);
+    if (searchFilters.startTime) params.set('startTime', searchFilters.startTime);
+    if (searchFilters.endTime) params.set('endTime', searchFilters.endTime);
+    if (searchFilters.clockType) params.set('clockType', searchFilters.clockType);
+    if (searchFilters.settlementType) params.set('settlementType', searchFilters.settlementType);
+    if (searchFilters.caseCode) params.set('caseCode', searchFilters.caseCode);
+    if (searchFilters.caseName) params.set('caseName', searchFilters.caseName);
+    if (searchFilters.userName) params.set('userName', searchFilters.userName);
     window.open(`/api/admin/export?${params}`, '_blank');
   };
 
@@ -180,19 +191,19 @@ export default function AdminRecordsPage() {
       <div className="bg-white p-3 sm:p-4 rounded-lg mb-3 space-y-2 sm:space-y-3">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span className="font-bold text-orange-700 text-sm">篩選時間</span>
-          <input type="datetime-local" value={startTime} onChange={e => { setStartTime(e.target.value); setPage(1); }} className="px-2 py-1 border rounded text-sm flex-1 min-w-[140px]" />
+          <input type="date" value={startTime} onChange={e => setStartTime(e.target.value)} className="px-2 py-1 border rounded text-sm flex-1 min-w-[120px]" />
           <span className="text-sm">~</span>
-          <input type="datetime-local" value={endTime} onChange={e => { setEndTime(e.target.value); setPage(1); }} className="px-2 py-1 border rounded text-sm flex-1 min-w-[140px]" />
+          <input type="date" value={endTime} onChange={e => setEndTime(e.target.value)} className="px-2 py-1 border rounded text-sm flex-1 min-w-[120px]" />
           <div className="flex gap-1">
-            <button onClick={() => { setClockType('in'); setPage(1); }} className={`px-3 py-1 rounded text-sm ${clockType === 'in' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>上班</button>
-            <button onClick={() => { setClockType('out'); setPage(1); }} className={`px-3 py-1 rounded text-sm ${clockType === 'out' ? 'bg-gray-600 text-white' : 'bg-gray-200'}`}>下班</button>
+            <button onClick={() => setClockType('in')} className={`px-3 py-1 rounded text-sm ${clockType === 'in' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>上班</button>
+            <button onClick={() => setClockType('out')} className={`px-3 py-1 rounded text-sm ${clockType === 'out' ? 'bg-gray-600 text-white' : 'bg-gray-200'}`}>下班</button>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span className="font-bold text-orange-700 text-sm">結算</span>
           {['', '週', '月', '半月'].map(t => (
-            <button key={t || 'all'} onClick={() => { setSettlementType(t); setPage(1); }}
+            <button key={t || 'all'} onClick={() => setSettlementType(t)}
               className={`px-3 py-1 rounded text-sm ${settlementType === t ? 'bg-blue-800 text-white' : 'bg-gray-200'}`}>
               {t || '全部'}
             </button>
@@ -201,13 +212,17 @@ export default function AdminRecordsPage() {
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span className="font-bold text-orange-700 text-sm">代碼</span>
-          <input value={caseCode} onChange={e => { setCaseCode(e.target.value); setPage(1); }} className="px-2 py-1 border rounded w-20 sm:w-28 text-sm" />
+          <input value={caseCode} onChange={e => setCaseCode(e.target.value)} className="px-2 py-1 border rounded w-20 sm:w-28 text-sm" />
 
           <span className="font-bold text-orange-700 text-sm">個案</span>
-          <input value={caseName} onChange={e => { setCaseName(e.target.value); setPage(1); }} className="px-2 py-1 border rounded w-20 sm:w-32 text-sm" />
+          <input value={caseName} onChange={e => setCaseName(e.target.value)} className="px-2 py-1 border rounded w-20 sm:w-32 text-sm" />
 
           <span className="font-bold text-orange-700 text-sm">特護</span>
-          <input value={userName} onChange={e => { setUserName(e.target.value); setPage(1); }} className="px-2 py-1 border rounded w-20 sm:w-32 text-sm" />
+          <input value={userName} onChange={e => setUserName(e.target.value)} className="px-2 py-1 border rounded w-20 sm:w-32 text-sm" />
+
+          <button onClick={handleSearch} className="px-4 py-1.5 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 text-sm">
+            搜尋
+          </button>
         </div>
       </div>
 

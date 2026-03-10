@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 interface ClockStatus {
   isClockedIn: boolean;
+  defaultCaseName?: string;
   openRecord?: {
     id: string;
     clockInTime: string;
@@ -170,21 +171,21 @@ export default function ClockPage() {
         </button>
       </nav>
 
-      {/* 值班中警告橫幅 */}
-      {isClockedIn && (
-        <div className="bg-orange-50 border-b border-orange-300 px-4 py-3 text-center">
-          <div className="text-orange-800 font-bold text-sm sm:text-base">
-            目前正在值班中
+      {/* 個案名稱顯示 */}
+      {clockStatus && (
+        <div className={`border-b px-4 py-2 text-center ${isClockedIn ? 'bg-orange-50 border-orange-300' : 'bg-blue-50 border-blue-200'}`}>
+          <div className={`font-bold text-sm sm:text-base ${isClockedIn ? 'text-orange-800' : 'text-blue-800'}`}>
+            {isClockedIn ? '目前正在值班中' : '目前個案'}
           </div>
-          <div className="text-orange-600 text-xs sm:text-sm mt-1">
-            {clockStatus?.openRecord?.caseName && `${clockStatus.openRecord.caseName} · `}
-            上班時間：{clockInTimeStr} · 已經過 {elapsedStr}
+          <div className={`text-xs sm:text-sm mt-1 ${isClockedIn ? 'text-orange-600' : 'text-blue-600'}`}>
+            個案名稱：{isClockedIn ? (clockStatus.openRecord?.caseName || '') : (clockStatus.defaultCaseName || '')}
+            {isClockedIn && clockInTimeStr && ` · 上班時間：${clockInTimeStr} · 已經過 ${elapsedStr}`}
           </div>
         </div>
       )}
 
       {/* Main content */}
-      <div className="flex flex-col items-center justify-center px-6" style={{ minHeight: isClockedIn ? 'calc(100vh - 110px)' : 'calc(100vh - 52px)' }}>
+      <div className="flex flex-col items-center justify-center px-6" style={{ minHeight: 'calc(100vh - 110px)' }}>
         {/* 即時時鐘 */}
         <div className="mb-8 text-center">
           <div className="text-5xl sm:text-6xl font-mono font-bold text-gray-800 tracking-wider">

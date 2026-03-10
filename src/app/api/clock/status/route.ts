@@ -9,24 +9,28 @@ export async function GET() {
       return NextResponse.json({ error: '未登入' }, { status: 401 });
     }
 
-    const openRecord = await findAnyOpenClockRecord(session.userId);
-
-    if (!openRecord) {
-      return NextResponse.json({ isClockedIn: false });
-    }
-
-    // 取得個案名稱
-    let caseName = '';
+    // 取得個案列表（用於顯示目前個案名稱）
+    let cases: { id: string; name: string }[] = [];
     try {
-      const cases = await getCases(session.orgId);
-      const matched = cases.find(c => c.id === openRecord.caseId);
-      caseName = matched?.name || '';
+      cases = await getCases(session.orgId);
     } catch {
       // ignore
     }
 
+    const defaultCaseName = cases[0]?.name || '';
+
+    const openRecord = await findAnyOpenClockRecord(session.userId);
+
+    if (!openRecord) {
+      return NextResponse.json({ isClockedIn: false, defaultCaseName });
+    }
+
+    const matched = cases.find(c => c.id === openRecord.caseId);
+    const caseName = matched?.name || '';
+
     return NextResponse.json({
       isClockedIn: true,
+      defaultCaseName,
       openRecord: {
         id: openRecord.id,
         clockInTime: openRecord.clockInTime,

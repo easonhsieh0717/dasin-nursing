@@ -48,22 +48,32 @@ export default function RecordsPage() {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
 
+  // 用於搜尋的 committed filter values（只在按搜尋時更新）
+  const [searchStartTime, setSearchStartTime] = useState('');
+  const [searchEndTime, setSearchEndTime] = useState('');
+
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), pageSize: '10' });
-    if (startTime) params.set('startTime', startTime);
-    if (endTime) params.set('endTime', endTime);
+    if (searchStartTime) params.set('startTime', searchStartTime);
+    if (searchEndTime) params.set('endTime', searchEndTime);
     const res = await fetch(`/api/records?${params}`);
     const data = await res.json();
     setRecords(data.data || []);
     setTotalPages(data.totalPages || 1);
     setTotal(data.total || 0);
     setLoading(false);
-  }, [page, startTime, endTime]);
+  }, [page, searchStartTime, searchEndTime]);
 
   useEffect(() => {
     fetchRecords();
   }, [fetchRecords]);
+
+  const handleSearch = () => {
+    setSearchStartTime(startTime);
+    setSearchEndTime(endTime);
+    setPage(1);
+  };
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -97,9 +107,12 @@ export default function RecordsPage() {
         {/* Date filter */}
         <div className="bg-white p-3 rounded-lg mb-3 flex flex-wrap items-center gap-2">
           <span className="font-bold text-orange-700 text-sm">篩選時間</span>
-          <input type="datetime-local" value={startTime} onChange={e => { setStartTime(e.target.value); setPage(1); }} className="px-2 py-1 border rounded text-sm flex-1 min-w-[140px]" />
+          <input type="date" value={startTime} onChange={e => setStartTime(e.target.value)} className="px-2 py-1 border rounded text-sm flex-1 min-w-[120px]" />
           <span className="text-sm">~</span>
-          <input type="datetime-local" value={endTime} onChange={e => { setEndTime(e.target.value); setPage(1); }} className="px-2 py-1 border rounded text-sm flex-1 min-w-[140px]" />
+          <input type="date" value={endTime} onChange={e => setEndTime(e.target.value)} className="px-2 py-1 border rounded text-sm flex-1 min-w-[120px]" />
+          <button onClick={handleSearch} className="px-4 py-1.5 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 text-sm">
+            搜尋
+          </button>
         </div>
 
         <div className="table-wrap">
