@@ -223,11 +223,11 @@ export default function PayrollPage() {
       {/* Date filter */}
       <div className="bg-white p-3 sm:p-4 rounded-lg mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
         <span className="font-bold text-orange-700 text-sm">篩選時間</span>
-        <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)}
-          className="px-2 py-1 border rounded text-sm flex-1 min-w-[140px]" />
+        <input type="date" value={startTime} onChange={e => setStartTime(e.target.value)}
+          className="px-2 py-1 border rounded text-sm flex-1 min-w-[120px]" />
         <span className="text-sm">~</span>
-        <input type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)}
-          className="px-2 py-1 border rounded text-sm flex-1 min-w-[140px]" />
+        <input type="date" value={endTime} onChange={e => setEndTime(e.target.value)}
+          className="px-2 py-1 border rounded text-sm flex-1 min-w-[120px]" />
         <button onClick={fetchPayroll} disabled={loading}
           className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 text-sm disabled:opacity-50">
           {loading ? '計算中...' : '計算薪資'}

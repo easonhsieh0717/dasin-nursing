@@ -61,25 +61,30 @@ function getPresetRange(preset: string): { start: string; end: string } {
   const y = now.getFullYear();
   const m = now.getMonth();
 
-  const fmt = (d: Date) => d.toISOString().slice(0, 16);
+  const fmt = (d: Date) => {
+    const yy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yy}-${mm}-${dd}`;
+  };
 
   switch (preset) {
     case 'thisMonth':
-      return { start: fmt(new Date(y, m, 1)), end: fmt(new Date(y, m + 1, 0, 23, 59)) };
+      return { start: fmt(new Date(y, m, 1)), end: fmt(new Date(y, m + 1, 0)) };
     case 'lastMonth':
-      return { start: fmt(new Date(y, m - 1, 1)), end: fmt(new Date(y, m, 0, 23, 59)) };
+      return { start: fmt(new Date(y, m - 1, 1)), end: fmt(new Date(y, m, 0)) };
     case 'thisQuarter': {
       const qStart = Math.floor(m / 3) * 3;
-      return { start: fmt(new Date(y, qStart, 1)), end: fmt(new Date(y, qStart + 3, 0, 23, 59)) };
+      return { start: fmt(new Date(y, qStart, 1)), end: fmt(new Date(y, qStart + 3, 0)) };
     }
     case 'lastQuarter': {
       const qStart = Math.floor(m / 3) * 3 - 3;
       const qy = qStart < 0 ? y - 1 : y;
       const qs = qStart < 0 ? qStart + 12 : qStart;
-      return { start: fmt(new Date(qy, qs, 1)), end: fmt(new Date(qy, qs + 3, 0, 23, 59)) };
+      return { start: fmt(new Date(qy, qs, 1)), end: fmt(new Date(qy, qs + 3, 0)) };
     }
     case 'thisYear':
-      return { start: fmt(new Date(y, 0, 1)), end: fmt(new Date(y, 11, 31, 23, 59)) };
+      return { start: fmt(new Date(y, 0, 1)), end: fmt(new Date(y, 11, 31)) };
     default:
       return { start: '', end: '' };
   }
@@ -174,11 +179,11 @@ export default function DashboardPage() {
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)}
-            className="px-2 py-1 border rounded text-sm flex-1 min-w-[140px]" />
+          <input type="date" value={startTime} onChange={e => setStartTime(e.target.value)}
+            className="px-2 py-1 border rounded text-sm flex-1 min-w-[120px]" />
           <span className="text-sm text-gray-500">~</span>
-          <input type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)}
-            className="px-2 py-1 border rounded text-sm flex-1 min-w-[140px]" />
+          <input type="date" value={endTime} onChange={e => setEndTime(e.target.value)}
+            className="px-2 py-1 border rounded text-sm flex-1 min-w-[120px]" />
           <button onClick={handleQuery} disabled={loading}
             className="px-4 py-1.5 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-700 disabled:opacity-50">
             {loading ? '載入中...' : '查詢'}
