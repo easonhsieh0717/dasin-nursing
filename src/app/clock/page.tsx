@@ -1,7 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+
+interface ClockStatus {
+  isClockedIn: boolean;
+  openRecord?: {
+    id: string;
+    clockInTime: string;
+    caseName: string;
+  };
+}
 
 export default function ClockPage() {
   const router = useRouter();
@@ -9,12 +18,28 @@ export default function ClockPage() {
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
   const [loading, setLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [clockStatus, setClockStatus] = useState<ClockStatus | null>(null);
 
   // 即時時鐘
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // 取得打卡狀態
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/clock/status');
+      const data = await res.json();
+      if (!data.error) setClockStatus(data);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStatus();
+  }, [fetchStatus]);
 
   const getLocation = (): Promise<{ lat: number; lng: number } | null> => {
     return new Promise((resolve) => {
@@ -59,6 +84,9 @@ export default function ClockPage() {
       const timeStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
       setMessage(`${type === 'in' ? '上班' : '下班'}打卡成功！ ${timeStr}`);
       setMessageType('success');
+
+      // 打卡成功後重新取得狀態
+      await fetchStatus();
     } catch {
       setMessage('系統錯誤');
       setMessageType('error');
@@ -71,6 +99,24 @@ export default function ClockPage() {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
   };
+
+  const isClockedIn = clockStatus?.isClockedIn ?? false;
+
+  // 計算已上班經過時間
+  let elapsedStr = '';
+  if (isClockedIn && clockStatus?.openRecord?.clockInTime) {
+    const diff = currentTime.getTime() - new Date(clockStatus.openRecord.clockInTime).getTime();
+    const hours = Math.floor(diff / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    elapsedStr = `${hours} 小時 ${mins} 分鐘`;
+  }
+
+  // 格式化上班時間
+  let clockInTimeStr = '';
+  if (clockStatus?.openRecord?.clockInTime) {
+    const d = new Date(clockStatus.openRecord.clockInTime);
+    clockInTimeStr = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -98,8 +144,21 @@ export default function ClockPage() {
         </button>
       </nav>
 
+      {/* 值班中警告橫幅 */}
+      {isClockedIn && (
+        <div className="bg-orange-50 border-b border-orange-300 px-4 py-3 text-center">
+          <div className="text-orange-800 font-bold text-sm sm:text-base">
+            目前正在值班中
+          </div>
+          <div className="text-orange-600 text-xs sm:text-sm mt-1">
+            {clockStatus?.openRecord?.caseName && `${clockStatus.openRecord.caseName} · `}
+            上班時間：{clockInTimeStr} · 已經過 {elapsedStr}
+          </div>
+        </div>
+      )}
+
       {/* Main content */}
-      <div className="flex flex-col items-center justify-center px-6" style={{ minHeight: 'calc(100vh - 52px)' }}>
+      <div className="flex flex-col items-center justify-center px-6" style={{ minHeight: isClockedIn ? 'calc(100vh - 110px)' : 'calc(100vh - 52px)' }}>
         {/* 即時時鐘 */}
         <div className="mb-8 text-center">
           <div className="text-5xl sm:text-6xl font-mono font-bold text-gray-800 tracking-wider">
@@ -117,18 +176,18 @@ export default function ClockPage() {
         <div className="flex items-center justify-center gap-8 sm:gap-16">
           <button
             onClick={() => handleClock('in')}
-            disabled={loading}
-            className="w-36 h-36 sm:w-40 sm:h-40 rounded-full text-white text-3xl sm:text-4xl font-bold shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, #34d058, #28a745)' }}
+            disabled={loading || isClockedIn}
+            className="w-36 h-36 sm:w-40 sm:h-40 rounded-full text-white text-3xl sm:text-4xl font-bold shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100"
+            style={{ background: isClockedIn ? '#9ca3af' : 'linear-gradient(135deg, #34d058, #28a745)' }}
           >
             上班
           </button>
 
           <button
             onClick={() => handleClock('out')}
-            disabled={loading}
-            className="w-36 h-36 sm:w-40 sm:h-40 rounded-full text-white text-3xl sm:text-4xl font-bold shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, #ff6b6b, #dc3545)' }}
+            disabled={loading || !isClockedIn}
+            className="w-36 h-36 sm:w-40 sm:h-40 rounded-full text-white text-3xl sm:text-4xl font-bold shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100"
+            style={{ background: !isClockedIn ? '#9ca3af' : 'linear-gradient(135deg, #ff6b6b, #dc3545)' }}
           >
             下班
           </button>

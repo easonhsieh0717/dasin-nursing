@@ -296,6 +296,24 @@ export async function findOpenClockRecord(userId: string, caseId: string): Promi
   return readDB().clockRecords.find(r => r.userId === userId && r.caseId === caseId && r.clockInTime && !r.clockOutTime);
 }
 
+/** 查找該使用者任意一筆未關閉的打卡紀錄（不限個案） */
+export async function findAnyOpenClockRecord(userId: string): Promise<ClockRecord | undefined> {
+  if (isSupabase) {
+    const { data } = await supabase
+      .from('clock_records').select('*')
+      .eq('user_id', userId)
+      .not('clock_in_time', 'is', null)
+      .is('clock_out_time', null)
+      .order('clock_in_time', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return data ? toRecord(data) : undefined;
+  }
+  return readDB().clockRecords.find(
+    r => r.userId === userId && r.clockInTime && !r.clockOutTime
+  );
+}
+
 // ===== Special Conditions =====
 export async function getSpecialConditions(orgId: string): Promise<SpecialCondition[]> {
   if (isSupabase) { const { data } = await supabase.from('special_conditions').select('*').eq('org_id', orgId); return (data || []).map(toSC); }

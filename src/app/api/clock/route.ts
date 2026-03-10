@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { createClockRecord, findOpenClockRecord, updateClockRecord, getCases, getRateSettings, getSpecialConditions } from '@/lib/db';
+import { createClockRecord, findOpenClockRecord, findAnyOpenClockRecord, updateClockRecord, getCases, getRateSettings, getSpecialConditions } from '@/lib/db';
 import { calculateSalary, getSpecialMultiplier } from '@/lib/utils';
 
 export async function POST(request: Request) {
@@ -13,6 +13,17 @@ export async function POST(request: Request) {
     const { type, lat, lng, caseId } = await request.json();
 
     if (type === 'in') {
+      // 防呆：有未關閉的打卡紀錄 → 禁止再上班打卡
+      const existingOpen = await findAnyOpenClockRecord(session.userId);
+      if (existingOpen) {
+        const d = new Date(existingOpen.clockInTime!);
+        const timeStr = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        return NextResponse.json(
+          { error: `你有未完成的打卡紀錄（上班時間：${timeStr}），請先打卡下班` },
+          { status: 400 }
+        );
+      }
+
       const cases = await getCases(session.orgId);
       const targetCaseId = caseId || cases[0]?.id;
       if (!targetCaseId) {
@@ -43,16 +54,9 @@ export async function POST(request: Request) {
         openRecord = await findOpenClockRecord(session.userId, caseId);
       }
 
-      // 若未找到，遍歷所有個案尋找
+      // 若未找到，查找任意未關閉的打卡紀錄
       if (!openRecord) {
-        const cases = await getCases(session.orgId);
-        for (const c of cases) {
-          const found = await findOpenClockRecord(session.userId, c.id);
-          if (found) {
-            openRecord = found;
-            break;
-          }
-        }
+        openRecord = await findAnyOpenClockRecord(session.userId) || null;
       }
 
       if (!openRecord) {

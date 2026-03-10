@@ -240,15 +240,25 @@ export default function AdminRecordsPage() {
           </tr>
         </thead>
         <tbody>
-          {records.map(r => (
-            <tr key={r.id}>
+          {records.map(r => {
+            // 異常偵測：有上班但未下班，且超過 12 小時
+            const isAnomaly = !!(r.clockInTime && !r.clockOutTime &&
+              (Date.now() - new Date(r.clockInTime).getTime()) > 12 * 60 * 60 * 1000);
+            return (
+            <tr key={r.id} className={isAnomaly ? 'bg-red-50' : ''}>
               <td>{r.caseName}</td>
               <td>{r.caseCode}</td>
               <td>{r.userName}</td>
               <td className="text-xs"><CoordsLink lat={r.clockInLat} lng={r.clockInLng} /></td>
               <td className="text-xs"><CoordsLink lat={r.clockOutLat} lng={r.clockOutLng} /></td>
               <td>{formatDT(r.clockInTime)}</td>
-              <td>{formatDT(r.clockOutTime)}</td>
+              <td>
+                {r.clockOutTime ? formatDT(r.clockOutTime) : (
+                  isAnomaly
+                    ? <span className="text-red-600 font-bold text-xs">⚠ 未下班 (超過12h)</span>
+                    : <span className="text-orange-500 text-xs">值班中</span>
+                )}
+              </td>
               <td className="font-bold text-blue-700">{r.billing ?? r.calculatedSalary ?? r.salary}</td>
               <td className="font-bold text-green-700">{r.nurseSalary ?? ''}</td>
               <td>{r.multiplier && r.multiplier > 1 ? <span className="text-red-600 font-bold">{r.multiplier}x</span> : ''}</td>
@@ -259,7 +269,8 @@ export default function AdminRecordsPage() {
                 </div>
               </td>
             </tr>
-          ))}
+            );
+          })}
           {loading && (
             <tr><td colSpan={11} className="py-8 text-gray-400">載入中...</td></tr>
           )}
