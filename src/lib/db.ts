@@ -2,7 +2,10 @@ import { supabase, isSupabase } from './supabase';
 import fs from 'fs';
 import path from 'path';
 
-const DB_PATH = path.join(process.cwd(), 'data', 'db.json');
+const isVercel = !!process.env.VERCEL;
+const DB_PATH = isVercel
+  ? path.join('/tmp', 'data', 'db.json')
+  : path.join(process.cwd(), 'data', 'db.json');
 
 // ===== Types =====
 export interface Organization { id: string; code: string; name: string; }
@@ -26,38 +29,60 @@ interface DB { organizations: Organization[]; users: User[]; cases: Case[]; cloc
 
 function generateId(): string { return Date.now().toString(36) + Math.random().toString(36).substring(2, 9); }
 
-function readDB(): DB {
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(DB_PATH)) {
-    const initial: DB = {
-      organizations: [{ id: 'org1', code: 'ZSB', name: '達信護理' }],
-      users: [
-        { id: 'admin1', orgId: 'org1', name: '管理員', account: 'A123', password: '9123', role: 'admin', hourlyRate: 0 },
-        { id: 'emp1', orgId: 'org1', name: '特護測試', account: 'L123', password: '9123', role: 'employee', hourlyRate: 200 },
-        { id: 'emp2', orgId: 'org1', name: '郭語', account: 'G001', password: '1234', role: 'employee', hourlyRate: 200 },
-        { id: 'emp3', orgId: 'org1', name: '陳俞均', account: 'C001', password: '1234', role: 'employee', hourlyRate: 220 },
-      ],
-      cases: [
-        { id: 'case1', orgId: 'org1', name: '中山區寶寶', code: 'ZSBB', caseType: '一般', settlementType: '週' },
-        { id: 'case2', orgId: 'org1', name: '高樹梁伯伯', code: 'GSLBB', caseType: '一般', settlementType: '月' },
-        { id: 'case3', orgId: 'org1', name: '林口錢林奶奶', code: 'LKQLN', caseType: '一般', settlementType: '週' },
-        { id: 'case4', orgId: 'org1', name: '天母居家奶奶', code: 'TMJJN', caseType: '一般', settlementType: '月' },
-      ],
-      clockRecords: [
-        { id: 'rec1', orgId: 'org1', userId: 'emp1', caseId: 'case1', clockInTime: '2026-03-06T23:50:00', clockInLat: 25.0503, clockInLng: 121.5295, clockOutTime: '2026-03-07T08:16:00', clockOutLat: 25.0506, clockOutLng: 121.5286, salary: 0 },
-        { id: 'rec2', orgId: 'org1', userId: 'emp2', caseId: 'case1', clockInTime: '2026-03-07T11:00:00', clockInLat: 25.0508, clockInLng: 121.5286, clockOutTime: '2026-03-07T19:07:00', clockOutLat: null, clockOutLng: null, salary: 0 },
-      ],
-      specialConditions: [{ id: 'sc1', orgId: 'org1', name: '過年', target: 'ZSB', multiplier: 2, startTime: '2026-02-16T16:30:00', endTime: '2026-02-21T23:59:00' }],
-      rateSettings: [{ id: 'rate1', orgId: 'org1', effectiveDate: '2024-12-01', label: '113/12/1 生效費率', mainDayRate: 490, mainNightRate: 530, otherDayRate: 550, otherNightRate: 600, fullDayRate24h: 12240, minBillingHours: 8, remoteAreaSubsidy: 500, dialysisVisitFee: 3000, dialysisOvertimeRate: 500 }]
-    };
-    fs.writeFileSync(DB_PATH, JSON.stringify(initial, null, 2), 'utf-8');
-    return initial;
-  }
-  return JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+// In-memory cache for Vercel serverless (no persistent filesystem)
+let memoryDB: DB | null = null;
+
+function getInitialData(): DB {
+  return {
+    organizations: [{ id: 'org1', code: 'ZSB', name: '達信護理' }],
+    users: [
+      { id: 'admin1', orgId: 'org1', name: '管理員', account: 'A123', password: '9123', role: 'admin', hourlyRate: 0 },
+      { id: 'emp1', orgId: 'org1', name: '特護測試', account: 'L123', password: '9123', role: 'employee', hourlyRate: 200 },
+      { id: 'emp2', orgId: 'org1', name: '郭語', account: 'G001', password: '1234', role: 'employee', hourlyRate: 200 },
+      { id: 'emp3', orgId: 'org1', name: '陳俞均', account: 'C001', password: '1234', role: 'employee', hourlyRate: 220 },
+    ],
+    cases: [
+      { id: 'case1', orgId: 'org1', name: '中山區寶寶', code: 'ZSBB', caseType: '一般', settlementType: '週' },
+      { id: 'case2', orgId: 'org1', name: '高樹梁伯伯', code: 'GSLBB', caseType: '一般', settlementType: '月' },
+      { id: 'case3', orgId: 'org1', name: '林口錢林奶奶', code: 'LKQLN', caseType: '一般', settlementType: '週' },
+      { id: 'case4', orgId: 'org1', name: '天母居家奶奶', code: 'TMJJN', caseType: '一般', settlementType: '月' },
+    ],
+    clockRecords: [
+      { id: 'rec1', orgId: 'org1', userId: 'emp1', caseId: 'case1', clockInTime: '2026-03-06T23:50:00', clockInLat: 25.0503, clockInLng: 121.5295, clockOutTime: '2026-03-07T08:16:00', clockOutLat: 25.0506, clockOutLng: 121.5286, salary: 0 },
+      { id: 'rec2', orgId: 'org1', userId: 'emp2', caseId: 'case1', clockInTime: '2026-03-07T11:00:00', clockInLat: 25.0508, clockInLng: 121.5286, clockOutTime: '2026-03-07T19:07:00', clockOutLat: null, clockOutLng: null, salary: 0 },
+    ],
+    specialConditions: [{ id: 'sc1', orgId: 'org1', name: '過年', target: 'ZSB', multiplier: 2, startTime: '2026-02-16T16:30:00', endTime: '2026-02-21T23:59:00' }],
+    rateSettings: [{ id: 'rate1', orgId: 'org1', effectiveDate: '2024-12-01', label: '113/12/1 生效費率', mainDayRate: 490, mainNightRate: 530, otherDayRate: 550, otherNightRate: 600, fullDayRate24h: 12240, minBillingHours: 8, remoteAreaSubsidy: 500, dialysisVisitFee: 3000, dialysisOvertimeRate: 500 }]
+  };
 }
 
-function writeDB(db: DB) { const dir = path.dirname(DB_PATH); if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2), 'utf-8'); }
+function readDB(): DB {
+  if (memoryDB) return memoryDB;
+  // Try reading from file
+  try {
+    if (fs.existsSync(DB_PATH)) {
+      memoryDB = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+      return memoryDB!;
+    }
+  } catch { /* ignore fs errors on Vercel */ }
+  // Fallback to initial seed data
+  memoryDB = getInitialData();
+  try {
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(DB_PATH, JSON.stringify(memoryDB, null, 2), 'utf-8');
+  } catch { /* Vercel read-only filesystem - data lives in memory */ }
+  return memoryDB;
+}
+
+function writeDB(db: DB) {
+  memoryDB = db;
+  try {
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2), 'utf-8');
+  } catch { /* Vercel read-only filesystem - data lives in memory only */ }
+}
 
 // ===== Organizations =====
 export async function getOrgByCode(code: string): Promise<Organization | undefined> {
