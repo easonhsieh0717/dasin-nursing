@@ -8,6 +8,9 @@ interface Nurse {
   account: string;
   password: string;
   hourlyRate: number;
+  bank: string;
+  accountNo: string;
+  accountName: string;
 }
 
 export default function NursesPage() {
@@ -18,7 +21,7 @@ export default function NursesPage() {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Nurse | null>(null);
-  const [form, setForm] = useState({ name: '', account: '', password: '', hourlyRate: '200' });
+  const [form, setForm] = useState({ name: '', account: '', password: '', hourlyRate: '200', bank: '', accountNo: '', accountName: '' });
   const [loading, setLoading] = useState(true);
 
   const fetchNurses = useCallback(async () => {
@@ -48,26 +51,36 @@ export default function NursesPage() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ name: '', account: '', password: '', hourlyRate: '200' });
+    setForm({ name: '', account: '', password: '', hourlyRate: '200', bank: '', accountNo: '', accountName: '' });
     setShowModal(true);
   };
 
   const openEdit = (n: Nurse) => {
     setEditing(n);
-    setForm({ name: n.name, account: n.account, password: n.password, hourlyRate: n.hourlyRate.toString() });
+    setForm({
+      name: n.name, account: n.account, password: n.password, hourlyRate: n.hourlyRate.toString(),
+      bank: n.bank || '', accountNo: n.accountNo || '', accountName: n.accountName || '',
+    });
     setShowModal(true);
   };
 
   const handleSave = async () => {
-    const body = editing
-      ? { id: editing.id, name: form.name, account: form.account, password: form.password, hourlyRate: parseFloat(form.hourlyRate) }
-      : { name: form.name, account: form.account, password: form.password, hourlyRate: parseFloat(form.hourlyRate) };
+    const body = {
+      ...(editing ? { id: editing.id } : {}),
+      name: form.name, account: form.account, password: form.password, hourlyRate: parseFloat(form.hourlyRate),
+      bank: form.bank, accountNo: form.accountNo, accountName: form.accountName,
+    };
 
-    await fetch('/api/admin/nurses', {
+    const res = await fetch('/api/admin/nurses', {
       method: editing ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || '儲存失敗');
+      return;
+    }
     setShowModal(false);
     fetchNurses();
   };
@@ -96,6 +109,8 @@ export default function NursesPage() {
             <th>帳號</th>
             <th>密碼</th>
             <th>時薪</th>
+            <th>銀行</th>
+            <th>銀行帳號</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -106,6 +121,8 @@ export default function NursesPage() {
               <td>{n.account}</td>
               <td>{n.password}</td>
               <td>{n.hourlyRate}</td>
+              <td className="text-xs">{n.bank || '-'}</td>
+              <td className="text-xs font-mono">{n.accountNo || '-'}</td>
               <td>
                 <div className="flex gap-1 justify-center">
                   <button onClick={() => openEdit(n)} className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded text-xs sm:text-sm hover:bg-blue-700">編輯</button>
@@ -115,10 +132,10 @@ export default function NursesPage() {
             </tr>
           ))}
           {loading && (
-            <tr><td colSpan={5} className="py-8 text-gray-400">載入中...</td></tr>
+            <tr><td colSpan={7} className="py-8 text-gray-400">載入中...</td></tr>
           )}
           {!loading && nurses.length === 0 && (
-            <tr><td colSpan={5} className="py-8 text-gray-400">尚無資料</td></tr>
+            <tr><td colSpan={7} className="py-8 text-gray-400">尚無資料</td></tr>
           )}
         </tbody>
       </table>
@@ -142,30 +159,48 @@ export default function NursesPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md space-y-4">
-            <h2 className="text-xl font-bold">{editing ? '編輯特護' : '新增特護'}</h2>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 overflow-y-auto py-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md mx-3 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg sm:text-xl font-bold">{editing ? '編輯特護' : '新增特護'}</h2>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium mb-1">特護名稱</label>
-                <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-3 py-2 border rounded" />
+                <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">帳號</label>
-                <input value={form.account} onChange={e => setForm({...form, account: e.target.value})} className="w-full px-3 py-2 border rounded" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">密碼</label>
-                <input value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full px-3 py-2 border rounded" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">帳號</label>
+                  <input value={form.account} onChange={e => setForm({...form, account: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">密碼</label>
+                  <input value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">時薪</label>
-                <input type="number" value={form.hourlyRate} onChange={e => setForm({...form, hourlyRate: e.target.value})} className="w-full px-3 py-2 border rounded" />
+                <input type="number" value={form.hourlyRate} onChange={e => setForm({...form, hourlyRate: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" />
+              </div>
+
+              <div className="border-t pt-3 mt-2">
+                <h4 className="font-bold text-orange-700 text-sm mb-2">銀行帳戶資訊（發薪用）</h4>
+                <div>
+                  <label className="block text-sm font-medium mb-1">銀行名稱</label>
+                  <input value={form.bank} onChange={e => setForm({...form, bank: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" placeholder="例：中華郵政、國泰世華" />
+                </div>
+                <div className="mt-2">
+                  <label className="block text-sm font-medium mb-1">銀行帳號</label>
+                  <input value={form.accountNo} onChange={e => setForm({...form, accountNo: e.target.value})} className="w-full px-3 py-2 border rounded text-sm font-mono" placeholder="帳號" />
+                </div>
+                <div className="mt-2">
+                  <label className="block text-sm font-medium mb-1">戶名</label>
+                  <input value={form.accountName} onChange={e => setForm({...form, accountName: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" placeholder="帳戶戶名" />
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={handleSave} className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700">儲存</button>
-              <button onClick={() => setShowModal(false)} className="px-5 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">取消</button>
+              <button onClick={handleSave} className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">儲存</button>
+              <button onClick={() => setShowModal(false)} className="px-5 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 text-sm">取消</button>
             </div>
           </div>
         </div>

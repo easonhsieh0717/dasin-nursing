@@ -9,7 +9,7 @@ const DB_PATH = isVercel
 
 // ===== Types =====
 export interface Organization { id: string; code: string; name: string; }
-export interface User { id: string; orgId: string; name: string; account: string; password: string; role: 'admin' | 'employee'; hourlyRate: number; }
+export interface User { id: string; orgId: string; name: string; account: string; password: string; role: 'admin' | 'employee'; hourlyRate: number; bank?: string; accountNo?: string; accountName?: string; }
 export interface Case { id: string; orgId: string; name: string; code: string; caseType: string; settlementType: string; }
 export interface ClockRecord { id: string; orgId: string; userId: string; caseId: string; clockInTime: string | null; clockInLat: number | null; clockInLng: number | null; clockOutTime: string | null; clockOutLat: number | null; clockOutLng: number | null; salary: number; }
 export interface SpecialCondition { id: string; orgId: string; name: string; target: string; multiplier: number; startTime: string; endTime: string; }
@@ -17,7 +17,7 @@ export interface RateSettings { id: string; orgId: string; effectiveDate: string
 
 // ===== Supabase row mappers =====
 /* eslint-disable @typescript-eslint/no-explicit-any */
-function toUser(r: any): User { return { id: r.id, orgId: r.org_id, name: r.name, account: r.account, password: r.password, role: r.role, hourlyRate: Number(r.hourly_rate) }; }
+function toUser(r: any): User { return { id: r.id, orgId: r.org_id, name: r.name, account: r.account, password: r.password, role: r.role, hourlyRate: Number(r.hourly_rate), bank: r.bank || '', accountNo: r.account_no || '', accountName: r.account_name || '' }; }
 function toCase(r: any): Case { return { id: r.id, orgId: r.org_id, name: r.name, code: r.code, caseType: r.case_type, settlementType: r.settlement_type }; }
 function toRecord(r: any): ClockRecord { return { id: r.id, orgId: r.org_id, userId: r.user_id, caseId: r.case_id, clockInTime: r.clock_in_time, clockInLat: r.clock_in_lat, clockInLng: r.clock_in_lng, clockOutTime: r.clock_out_time, clockOutLat: r.clock_out_lat, clockOutLng: r.clock_out_lng, salary: Number(r.salary) }; }
 function toSC(r: any): SpecialCondition { return { id: r.id, orgId: r.org_id, name: r.name, target: r.target, multiplier: Number(r.multiplier), startTime: r.start_time, endTime: r.end_time }; }
@@ -121,7 +121,7 @@ export async function getUsers(orgId: string, search?: string): Promise<User[]> 
 
 export async function createUser(user: Omit<User, 'id'>): Promise<User> {
   if (isSupabase) {
-    const { data } = await supabase.from('users').insert({ org_id: user.orgId, name: user.name, account: user.account, password: user.password, role: user.role, hourly_rate: user.hourlyRate }).select().single();
+    const { data } = await supabase.from('users').insert({ org_id: user.orgId, name: user.name, account: user.account, password: user.password, role: user.role, hourly_rate: user.hourlyRate, bank: user.bank || '', account_no: user.accountNo || '', account_name: user.accountName || '' }).select().single();
     return toUser(data);
   }
   const db = readDB(); const n: User = { ...user, id: generateId() }; db.users.push(n); writeDB(db); return n;
@@ -134,6 +134,9 @@ export async function updateUser(id: string, data: Partial<User>): Promise<User 
     if (data.account !== undefined) update.account = data.account;
     if (data.password !== undefined) update.password = data.password;
     if (data.hourlyRate !== undefined) update.hourly_rate = data.hourlyRate;
+    if (data.bank !== undefined) update.bank = data.bank;
+    if (data.accountNo !== undefined) update.account_no = data.accountNo;
+    if (data.accountName !== undefined) update.account_name = data.accountName;
     const { data: row } = await supabase.from('users').update(update).eq('id', id).select().single();
     return row ? toUser(row) : null;
   }

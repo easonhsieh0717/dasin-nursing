@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 
 const navItems = [
   { label: '紀錄', path: '/admin/records' },
+  { label: '發放', path: '/admin/payroll' },
   { label: '特護', path: '/admin/nurses' },
   { label: '個案', path: '/admin/cases' },
   { label: '特殊狀況', path: '/admin/special' },

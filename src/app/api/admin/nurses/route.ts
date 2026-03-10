@@ -44,6 +44,9 @@ export async function POST(request: Request) {
       password: body.password,
       role: 'employee',
       hourlyRate: body.hourlyRate || 200,
+      bank: body.bank || '',
+      accountNo: body.accountNo || '',
+      accountName: body.accountName || '',
     });
 
     return NextResponse.json(user);
