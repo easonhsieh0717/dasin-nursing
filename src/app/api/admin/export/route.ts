@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getClockRecords, enrichRecords, getRateSettings, getSpecialConditions } from '@/lib/db';
-import { calculateSalary, getSpecialMultiplier } from '@/lib/utils';
+import { formatDateTime, formatCoords, calculateHours, calculateSalary, getSpecialMultiplier } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 
 /** 格式化時間為 HHmm (e.g. "0900") */
@@ -66,17 +66,36 @@ export async function GET(request: Request) {
 
   const wb = XLSX.utils.book_new();
 
-  // ========== Sheet 1: 簽到表 ==========
+  // ========== Sheet 1: 打卡紀錄（完整明細） ==========
+  const detailRows = computed.map(r => ({
+    '個案名稱': r.caseName,
+    '特護名稱': r.userName,
+    '上班經緯度': formatCoords(r.clockInLat, r.clockInLng),
+    '下班經緯度': formatCoords(r.clockOutLat, r.clockOutLng),
+    '上班時間': formatDateTime(r.clockInTime),
+    '下班時間': formatDateTime(r.clockOutTime),
+    '工時(小時)': calculateHours(r.clockInTime, r.clockOutTime),
+    '薪資': r.salary,
+    '倍率': r.multiplier > 1 ? `${r.multiplier}x` : '',
+  }));
+  const wsDetail = XLSX.utils.json_to_sheet(detailRows);
+  wsDetail['!cols'] = [
+    { wch: 15 }, { wch: 10 }, { wch: 30 }, { wch: 30 },
+    { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 10 }, { wch: 8 },
+  ];
+  XLSX.utils.book_append_sheet(wb, wsDetail, '打卡紀錄');
+
+  // ========== Sheet 2: 簽到表 ==========
   const signRows = computed.map(r => ({
     '日期': r.date,
     '時間': r.timeRange,
     '簽到人': r.userName,
   }));
-  const ws1 = XLSX.utils.json_to_sheet(signRows);
-  ws1['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 12 }];
-  XLSX.utils.book_append_sheet(wb, ws1, '簽到表');
+  const wsSign = XLSX.utils.json_to_sheet(signRows);
+  wsSign['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, wsSign, '簽到表');
 
-  // ========== Sheet 2: 請款明細 + 薪資彙總 ==========
+  // ========== Sheet 3: 請款明細 + 薪資彙總 ==========
   const invoiceRows: Record<string, string | number>[] = computed.map(r => ({
     '日期': r.date,
     '時間': r.timeRange,
@@ -93,21 +112,18 @@ export async function GET(request: Request) {
     '金額': totalSalary,
   });
 
-  const ws2 = XLSX.utils.json_to_sheet(invoiceRows);
-  ws2['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
+  const wsInvoice = XLSX.utils.json_to_sheet(invoiceRows);
+  wsInvoice['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
 
   // 空兩行後加薪資彙總
-  const summaryStartRow = invoiceRows.length + 3; // +1 header +1 data rows + 1 blank
+  const summaryStartRow = invoiceRows.length + 3;
 
-  // 薪資彙總表頭
-  const summaryHeader = { '特護': '特護', '薪資': '薪資', '費用': '費用', '總計': '總計' };
   // 按特護彙總
   const nurseSalaryMap = new Map<string, number>();
   for (const r of computed) {
     nurseSalaryMap.set(r.userName, (nurseSalaryMap.get(r.userName) || 0) + r.salary);
   }
 
-  // 手動寫入薪資彙總到同一個 sheet
   const summaryData: (string | number)[][] = [
     ['特護', '薪資', '費用', '總計'],
   ];
@@ -115,10 +131,8 @@ export async function GET(request: Request) {
     summaryData.push([name, sal, '', sal]);
   }
 
-  // 寫入彙總到 sheet2 的指定位置
-  XLSX.utils.sheet_add_aoa(ws2, summaryData, { origin: { r: summaryStartRow, c: 0 } });
-
-  XLSX.utils.book_append_sheet(wb, ws2, '請款明細');
+  XLSX.utils.sheet_add_aoa(wsInvoice, summaryData, { origin: { r: summaryStartRow, c: 0 } });
+  XLSX.utils.book_append_sheet(wb, wsInvoice, '請款明細');
 
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
