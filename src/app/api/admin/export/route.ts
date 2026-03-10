@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getClockRecords, enrichRecords } from '@/lib/db';
-import { formatDateTime, formatCoords, calculateHours } from '@/lib/utils';
+import { getClockRecords, enrichRecords, getRateSettings, getSpecialConditions } from '@/lib/db';
+import { formatDateTime, formatCoords, calculateHours, calculateSalary, getSpecialMultiplier } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 
 export async function GET(request: Request) {
@@ -24,16 +24,37 @@ export async function GET(request: Request) {
   });
   const enriched = await enrichRecords(records);
 
-  const rows = enriched.map(r => ({
-    '個案名稱': r.caseName,
-    '特護名稱': r.userName,
-    '上班經緯度': formatCoords(r.clockInLat, r.clockInLng),
-    '下班經緯度': formatCoords(r.clockOutLat, r.clockOutLng),
-    '上班時間': formatDateTime(r.clockInTime),
-    '下班時間': formatDateTime(r.clockOutTime),
-    '工時(小時)': calculateHours(r.clockInTime, r.clockOutTime),
-    '薪資': r.salary,
-  }));
+  // 取得最新費率設定（依生效日期排序取最新）
+  const allRates = await getRateSettings(session.orgId);
+  const latestRate = allRates.sort((a, b) =>
+    new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime()
+  )[0];
+
+  // 取得所有特殊狀況
+  const specialConditions = await getSpecialConditions(session.orgId);
+
+  // 預設費率（無設定時使用）
+  const dayRate = latestRate?.mainDayRate ?? 490;
+  const nightRate = latestRate?.mainNightRate ?? 530;
+
+  const rows = enriched.map(r => {
+    // 計算特殊倍率
+    const multiplier = getSpecialMultiplier(r.clockInTime, r.clockOutTime, specialConditions);
+    // 自動計算薪資
+    const calculatedSalary = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
+
+    return {
+      '個案名稱': r.caseName,
+      '特護名稱': r.userName,
+      '上班經緯度': formatCoords(r.clockInLat, r.clockInLng),
+      '下班經緯度': formatCoords(r.clockOutLat, r.clockOutLng),
+      '上班時間': formatDateTime(r.clockInTime),
+      '下班時間': formatDateTime(r.clockOutTime),
+      '工時(小時)': calculateHours(r.clockInTime, r.clockOutTime),
+      '薪資': calculatedSalary,
+      '倍率': multiplier > 1 ? `${multiplier}x` : '',
+    };
+  });
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -41,7 +62,7 @@ export async function GET(request: Request) {
   // Set column widths
   ws['!cols'] = [
     { wch: 15 }, { wch: 10 }, { wch: 30 }, { wch: 30 },
-    { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 10 },
+    { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 10 }, { wch: 8 },
   ];
 
   XLSX.utils.book_append_sheet(wb, ws, '打卡紀錄');

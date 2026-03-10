@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getClockRecords, enrichRecords, createClockRecord, updateClockRecord, deleteClockRecord } from '@/lib/db';
-import { paginate } from '@/lib/utils';
+import { getClockRecords, enrichRecords, createClockRecord, updateClockRecord, deleteClockRecord, getRateSettings, getSpecialConditions } from '@/lib/db';
+import { paginate, calculateSalary, getSpecialMultiplier } from '@/lib/utils';
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -32,7 +32,24 @@ export async function GET(request: Request) {
 
   const records = await getClockRecords(session.orgId, filters);
   const enriched = await enrichRecords(records);
-  const result = paginate(enriched, page, pageSize);
+
+  // 取得費率和特殊狀況，自動計算薪資
+  const allRates = await getRateSettings(session.orgId);
+  const latestRate = allRates.sort((a, b) =>
+    new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime()
+  )[0];
+  const specialConditions = await getSpecialConditions(session.orgId);
+
+  const dayRate = latestRate?.mainDayRate ?? 490;
+  const nightRate = latestRate?.mainNightRate ?? 530;
+
+  const withSalary = enriched.map(r => {
+    const multiplier = getSpecialMultiplier(r.clockInTime, r.clockOutTime, specialConditions);
+    const calculatedSalary = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
+    return { ...r, calculatedSalary, multiplier };
+  });
+
+  const result = paginate(withSalary, page, pageSize);
 
   return NextResponse.json(result);
 }

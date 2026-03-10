@@ -14,6 +14,8 @@ interface EnrichedRecord {
   clockInTime: string | null;
   clockOutTime: string | null;
   salary: number;
+  calculatedSalary?: number;
+  multiplier?: number;
   userId: string;
   caseId: string;
 }
@@ -198,6 +200,7 @@ export default function AdminRecordsPage() {
             <th>上班時間</th>
             <th>下班時間</th>
             <th>薪資</th>
+            <th>倍率</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -210,7 +213,8 @@ export default function AdminRecordsPage() {
               <td className="text-xs">{fmtCoords(r.clockOutLat, r.clockOutLng)}</td>
               <td>{formatDT(r.clockInTime)}</td>
               <td>{formatDT(r.clockOutTime)}</td>
-              <td>{r.salary}</td>
+              <td className="font-bold text-green-700">{r.calculatedSalary ?? r.salary}</td>
+              <td>{r.multiplier && r.multiplier > 1 ? <span className="text-red-600 font-bold">{r.multiplier}x</span> : ''}</td>
               <td>
                 <button onClick={() => openEdit(r)} className="px-3 py-1 bg-blue-600 text-white rounded mr-1 text-sm hover:bg-blue-700">編輯</button>
                 <button onClick={() => handleDelete(r.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600">刪除</button>
@@ -218,7 +222,7 @@ export default function AdminRecordsPage() {
             </tr>
           ))}
           {records.length === 0 && (
-            <tr><td colSpan={8} className="py-8 text-gray-400">尚無紀錄</td></tr>
+            <tr><td colSpan={9} className="py-8 text-gray-400">尚無紀錄</td></tr>
           )}
         </tbody>
       </table>
