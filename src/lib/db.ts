@@ -125,16 +125,26 @@ export async function authenticateUser(orgCode: string, account: string, passwor
   return db.users.find(u => u.orgId === org.id && u.account === account && u.password === password) || null;
 }
 
-export async function getUsers(orgId: string, search?: string): Promise<User[]> {
+export async function getUsers(orgId: string, search?: string, page?: number, pageSize?: number): Promise<{ users: User[]; total: number }> {
   if (isSupabase) {
-    let q = supabase.from('users').select('*').eq('org_id', orgId).eq('role', 'employee');
+    let q = supabase.from('users').select('*', { count: 'exact' }).eq('org_id', orgId).eq('role', 'employee');
     if (search) q = q.ilike('name', `%${search}%`);
-    const { data } = await q;
-    return (data || []).map(toUser);
+    q = q.order('name');
+    if (page && pageSize) {
+      const from = (page - 1) * pageSize;
+      q = q.range(from, from + pageSize - 1);
+    }
+    const { data, count } = await q;
+    return { users: (data || []).map(toUser), total: count || 0 };
   }
   let users = readDB().users.filter(u => u.orgId === orgId && u.role === 'employee');
   if (search) users = users.filter(u => u.name.includes(search));
-  return users;
+  const total = users.length;
+  if (page && pageSize) {
+    const start = (page - 1) * pageSize;
+    users = users.slice(start, start + pageSize);
+  }
+  return { users, total };
 }
 
 export async function createUser(user: Omit<User, 'id'>): Promise<User> {

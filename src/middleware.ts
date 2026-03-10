@@ -22,8 +22,11 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // Admin routes protection
-  if (pathname.startsWith('/admin') && payload.role !== 'admin') {
+  // Admin routes protection (pages + API)
+  if ((pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) && payload.role !== 'admin') {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: '無權限' }, { status: 403 });
+    }
     return NextResponse.redirect(new URL('/clock', request.url));
   }
 

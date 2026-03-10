@@ -1,7 +1,11 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'nursing-clock-secret-key-2024');
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret && process.env.NODE_ENV === 'production') {
+  console.error('FATAL: JWT_SECRET environment variable is not set!');
+}
+const SECRET = new TextEncoder().encode(jwtSecret || 'dev-only-secret-do-not-use-in-production');
 
 export interface TokenPayload {
   userId: string;

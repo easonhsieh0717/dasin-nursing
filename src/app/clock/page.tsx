@@ -13,7 +13,7 @@ export default function ClockPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
-    fetch('/api/admin/cases?all=true')
+    fetch('/api/cases')
       .then(r => r.json())
       .then(d => {
         if (d.data) {

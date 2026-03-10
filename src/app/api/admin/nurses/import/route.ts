@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     const defaultRate = latestRate?.mainDayRate ?? 490;
 
     // 取得目前所有特護
-    const existingUsers = await getUsers(session.orgId);
+    const { users: existingUsers } = await getUsers(session.orgId);
     const userByName = new Map(existingUsers.map(u => [u.name.trim(), u]));
 
     let updated = 0;

@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     const nightRate = latestRate?.mainNightRate ?? 530;
 
     // 取得所有特護（含銀行資訊）
-    const users = await getUsers(session.orgId);
+    const { users } = await getUsers(session.orgId);
     const userMap = new Map(users.map(u => [u.id, u]));
 
     // 計算每筆薪資

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getUsers, createUser, updateUser, deleteUser, getClockRecords } from '@/lib/db';
-import { paginate } from '@/lib/utils';
 
 export async function GET(request: Request) {
   try {
@@ -16,13 +15,14 @@ export async function GET(request: Request) {
     const search = searchParams.get('search') || undefined;
     const all = searchParams.get('all');
 
-    const users = await getUsers(session.orgId, search);
-
     if (all === 'true') {
-      return NextResponse.json({ data: users, total: users.length });
+      const { users, total } = await getUsers(session.orgId, search);
+      return NextResponse.json({ data: users, total });
     }
 
-    return NextResponse.json(paginate(users, page, pageSize));
+    const { users, total } = await getUsers(session.orgId, search, page, pageSize);
+    const totalPages = Math.ceil(total / pageSize);
+    return NextResponse.json({ data: users, total, totalPages });
   } catch (err) {
     console.error('Nurses GET error:', err);
     return NextResponse.json({ error: '系統錯誤' }, { status: 500 });

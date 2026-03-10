@@ -18,6 +18,9 @@ CREATE TABLE users (
   password VARCHAR(100) NOT NULL,
   role VARCHAR(20) DEFAULT 'employee',
   hourly_rate DECIMAL(10,2) DEFAULT 200,
+  bank VARCHAR(100) DEFAULT '',
+  account_no VARCHAR(50) DEFAULT '',
+  account_name VARCHAR(50) DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(org_id, account)
 );
@@ -81,18 +84,22 @@ CREATE TABLE rate_settings (
 
 -- 索引
 CREATE INDEX idx_users_org ON users(org_id);
+CREATE INDEX idx_users_name ON users(name);
 CREATE INDEX idx_cases_org ON cases(org_id);
 CREATE INDEX idx_clock_records_org ON clock_records(org_id);
 CREATE INDEX idx_clock_records_user ON clock_records(user_id);
+CREATE INDEX idx_clock_records_case ON clock_records(case_id);
 CREATE INDEX idx_clock_records_time ON clock_records(clock_in_time DESC);
+CREATE INDEX idx_clock_records_out_time ON clock_records(clock_out_time DESC);
+CREATE INDEX idx_clock_records_open ON clock_records(user_id) WHERE clock_out_time IS NULL;
 
 -- 插入預設資料
 INSERT INTO organizations (id, code, name) VALUES
   ('00000000-0000-0000-0000-000000000001', 'ZSB', '達信護理');
 
 INSERT INTO users (org_id, name, account, password, role, hourly_rate) VALUES
-  ('00000000-0000-0000-0000-000000000001', '管理員', 'L123', '9123', 'admin', 0),
-  ('00000000-0000-0000-0000-000000000001', '林宜丹', 'L001', '1234', 'employee', 200),
+  ('00000000-0000-0000-0000-000000000001', '管理員', 'A123', '9123', 'admin', 0),
+  ('00000000-0000-0000-0000-000000000001', '特護測試', 'L123', '9123', 'employee', 200),
   ('00000000-0000-0000-0000-000000000001', '郭語', 'G001', '1234', 'employee', 200),
   ('00000000-0000-0000-0000-000000000001', '陳俞均', 'C001', '1234', 'employee', 220);
 
@@ -108,7 +115,7 @@ INSERT INTO rate_settings (org_id, effective_date, label, main_day_rate, main_ni
 INSERT INTO special_conditions (org_id, name, target, multiplier, start_time, end_time) VALUES
   ('00000000-0000-0000-0000-000000000001', '過年', 'ZSB', 2, '2026-02-16 16:30:00+08', '2026-02-21 23:59:00+08');
 
--- 關閉 RLS（簡化版，正式環境可再啟用）
+-- RLS: 只允許 service_role 完全存取（API 用 service key）
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cases ENABLE ROW LEVEL SECURITY;
@@ -116,10 +123,9 @@ ALTER TABLE clock_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE special_conditions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rate_settings ENABLE ROW LEVEL SECURITY;
 
--- 允許 service_role 完全存取（API 用 service key）
-CREATE POLICY "service_all" ON organizations FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "service_all" ON users FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "service_all" ON cases FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "service_all" ON clock_records FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "service_all" ON special_conditions FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "service_all" ON rate_settings FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "service_all" ON organizations FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_all" ON users FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_all" ON cases FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_all" ON clock_records FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_all" ON special_conditions FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_all" ON rate_settings FOR ALL TO service_role USING (true) WITH CHECK (true);

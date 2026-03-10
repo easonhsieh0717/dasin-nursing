@@ -3,7 +3,12 @@ import { authenticateUser, getOrgByCode, authenticateAdmin } from '@/lib/db';
 import { createToken } from '@/lib/auth';
 
 export async function POST(request: Request) {
-  const { code, account, password } = await request.json();
+  let code: string, account: string, password: string;
+  try {
+    ({ code, account, password } = await request.json());
+  } catch {
+    return NextResponse.json({ error: '請求格式錯誤' }, { status: 400 });
+  }
 
   if (!account || !password) {
     return NextResponse.json({ error: '請填寫帳號和密碼' }, { status: 400 });

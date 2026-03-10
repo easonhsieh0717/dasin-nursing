@@ -130,16 +130,21 @@ export async function GET(request: Request) {
   // 空兩行後加薪資彙總
   const summaryStartRow = invoiceRows.length + 3;
 
-  // 按特護彙總
-  const nurseSalaryMap = new Map<string, number>();
+  // 按特護彙總（用 userId 避免同名合併錯誤）
+  const nurseSalaryMap = new Map<string, { name: string; salary: number }>();
   for (const r of computed) {
-    nurseSalaryMap.set(r.userName, (nurseSalaryMap.get(r.userName) || 0) + r.salary);
+    const existing = nurseSalaryMap.get(r.userId);
+    if (existing) {
+      existing.salary += r.salary;
+    } else {
+      nurseSalaryMap.set(r.userId, { name: r.userName, salary: r.salary });
+    }
   }
 
   const summaryData: (string | number)[][] = [
     ['特護', '薪資', '費用', '總計'],
   ];
-  for (const [name, sal] of nurseSalaryMap) {
+  for (const [, { name, salary: sal }] of nurseSalaryMap) {
     summaryData.push([name, sal, '', sal]);
   }
 

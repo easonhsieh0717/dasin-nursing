@@ -60,11 +60,16 @@ export default function CasesPage() {
 
   const handleSave = async () => {
     const body = editing ? { id: editing.id, ...form } : form;
-    await fetch('/api/admin/cases', {
+    const res = await fetch('/api/admin/cases', {
       method: editing ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || '儲存失敗');
+      return;
+    }
     setShowModal(false);
     fetchCases();
   };
