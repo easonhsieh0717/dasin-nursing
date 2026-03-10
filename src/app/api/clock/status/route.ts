@@ -28,8 +28,10 @@ export async function GET() {
 
     const openRecord = await findAnyOpenClockRecord(session.userId);
 
+    const userAccount = user?.account || '';
+
     if (!openRecord) {
-      return NextResponse.json({ isClockedIn: false, defaultCaseName, defaultCaseCode, defaultCaseId: assignedCaseId });
+      return NextResponse.json({ isClockedIn: false, defaultCaseName, defaultCaseCode, defaultCaseId: assignedCaseId, account: userAccount });
     }
 
     const matched = cases.find(c => c.id === openRecord.caseId);
@@ -40,6 +42,7 @@ export async function GET() {
       defaultCaseName,
       defaultCaseCode,
       defaultCaseId: assignedCaseId,
+      account: userAccount,
       openRecord: {
         id: openRecord.id,
         clockInTime: openRecord.clockInTime,

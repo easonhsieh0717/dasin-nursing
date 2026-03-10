@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface ClockStatus {
@@ -8,6 +8,7 @@ interface ClockStatus {
   defaultCaseName?: string;
   defaultCaseCode?: string;
   defaultCaseId?: string;
+  account?: string;
   openRecord?: {
     id: string;
     clockInTime: string;
@@ -22,6 +23,7 @@ export default function ClockPage() {
   const [loading, setLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [clockStatus, setClockStatus] = useState<ClockStatus | null>(null);
+  const remindTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // 即時時鐘
   useEffect(() => {
@@ -43,6 +45,37 @@ export default function ClockPage() {
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
+
+  // 上班中定時提醒（每 2 分鐘呼叫 /api/push/remind）
+  const startRemindTimer = useCallback(() => {
+    // 清除舊 timer
+    if (remindTimerRef.current) clearInterval(remindTimerRef.current);
+    remindTimerRef.current = setInterval(async () => {
+      try {
+        await fetch('/api/push/remind', { method: 'POST' });
+      } catch {
+        // 失敗不影響使用
+      }
+    }, 2 * 60 * 1000); // 每 2 分鐘
+  }, []);
+
+  const stopRemindTimer = useCallback(() => {
+    if (remindTimerRef.current) {
+      clearInterval(remindTimerRef.current);
+      remindTimerRef.current = null;
+    }
+  }, []);
+
+  // 只有 T123 測試帳號：上班中時自動啟動每 2 分鐘推播提醒
+  const isTestAccount = clockStatus?.account === 'T123';
+  useEffect(() => {
+    if (isTestAccount && clockStatus?.isClockedIn) {
+      startRemindTimer();
+    } else {
+      stopRemindTimer();
+    }
+    return () => stopRemindTimer();
+  }, [isTestAccount, clockStatus?.isClockedIn, startRemindTimer, stopRemindTimer]);
 
   const getLocation = (): Promise<{ lat: number; lng: number } | null> => {
     return new Promise((resolve) => {
