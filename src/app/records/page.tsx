@@ -13,6 +13,8 @@ interface Record {
   clockOutLng: number | null;
   clockInTime: string | null;
   clockOutTime: string | null;
+  calculatedSalary?: number;
+  multiplier?: number;
 }
 
 function formatDateTime(dateStr: string | null): string {
@@ -26,9 +28,14 @@ function formatDateTime(dateStr: string | null): string {
   return `${y}年${m}月${day}日 ${h}點${min}分`;
 }
 
-function formatCoords(lat: number | null, lng: number | null): string {
-  if (lat === null || lng === null) return '';
-  return `${lat}, ${lng}`;
+function CoordsLink({ lat, lng }: { lat: number | null; lng: number | null }) {
+  if (lat === null || lng === null) return <span></span>;
+  const url = `https://www.google.com/maps?q=${lat},${lng}`;
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+      {lat.toFixed(4)}, {lng.toFixed(4)}
+    </a>
+  );
 }
 
 export default function RecordsPage() {
@@ -38,16 +45,21 @@ export default function RecordsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/records?page=${page}&pageSize=10`);
+    const params = new URLSearchParams({ page: String(page), pageSize: '10' });
+    if (startTime) params.set('startTime', startTime);
+    if (endTime) params.set('endTime', endTime);
+    const res = await fetch(`/api/records?${params}`);
     const data = await res.json();
     setRecords(data.data || []);
     setTotalPages(data.totalPages || 1);
     setTotal(data.total || 0);
     setLoading(false);
-  }, [page]);
+  }, [page, startTime, endTime]);
 
   useEffect(() => {
     fetchRecords();
@@ -81,7 +93,15 @@ export default function RecordsPage() {
         </button>
       </nav>
 
-      <div className="p-6">
+      <div className="p-3 sm:p-6">
+        {/* Date filter */}
+        <div className="bg-white p-3 rounded-lg mb-3 flex flex-wrap items-center gap-2">
+          <span className="font-bold text-orange-700 text-sm">篩選時間</span>
+          <input type="datetime-local" value={startTime} onChange={e => { setStartTime(e.target.value); setPage(1); }} className="px-2 py-1 border rounded text-sm flex-1 min-w-[140px]" />
+          <span className="text-sm">~</span>
+          <input type="datetime-local" value={endTime} onChange={e => { setEndTime(e.target.value); setPage(1); }} className="px-2 py-1 border rounded text-sm flex-1 min-w-[140px]" />
+        </div>
+
         <div className="table-wrap">
         <table>
           <thead>
@@ -92,6 +112,8 @@ export default function RecordsPage() {
               <th>下班經緯度</th>
               <th>上班時間</th>
               <th>下班時間</th>
+              <th>薪資</th>
+              <th>倍率</th>
             </tr>
           </thead>
           <tbody>
@@ -99,17 +121,19 @@ export default function RecordsPage() {
               <tr key={r.id}>
                 <td>{r.caseName}</td>
                 <td>{r.userName}</td>
-                <td className="text-xs">{formatCoords(r.clockInLat, r.clockInLng)}</td>
-                <td className="text-xs">{formatCoords(r.clockOutLat, r.clockOutLng)}</td>
+                <td className="text-xs"><CoordsLink lat={r.clockInLat} lng={r.clockInLng} /></td>
+                <td className="text-xs"><CoordsLink lat={r.clockOutLat} lng={r.clockOutLng} /></td>
                 <td>{formatDateTime(r.clockInTime)}</td>
                 <td>{formatDateTime(r.clockOutTime)}</td>
+                <td className="font-bold text-green-700">{r.calculatedSalary ?? ''}</td>
+                <td>{r.multiplier && r.multiplier > 1 ? <span className="text-red-600 font-bold">{r.multiplier}x</span> : ''}</td>
               </tr>
             ))}
             {loading && (
-              <tr><td colSpan={6} className="py-8 text-gray-400">載入中...</td></tr>
+              <tr><td colSpan={8} className="py-8 text-gray-400">載入中...</td></tr>
             )}
             {!loading && records.length === 0 && (
-              <tr><td colSpan={6} className="py-8 text-gray-400">尚無紀錄</td></tr>
+              <tr><td colSpan={8} className="py-8 text-gray-400">尚無紀錄</td></tr>
             )}
           </tbody>
         </table>
@@ -153,7 +177,7 @@ export default function RecordsPage() {
           >
             &gt;
           </button>
-          <span className="ml-4 text-sm text-gray-500">共 {total} 筆 | 10 / page</span>
+          <span className="ml-4 text-sm text-gray-500">共 {total} 筆 | 每頁 10 筆</span>
         </div>
       </div>
     </div>

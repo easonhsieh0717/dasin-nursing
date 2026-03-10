@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import { createClockRecord, findOpenClockRecord, updateClockRecord, getCases } from '@/lib/db';
 
 export async function POST(request: Request) {
+  try {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: '未登入' }, { status: 401 });
@@ -34,14 +35,22 @@ export async function POST(request: Request) {
   }
 
   if (type === 'out') {
-    const cases = await getCases(session.orgId);
     let openRecord = null;
 
-    for (const c of cases) {
-      const found = await findOpenClockRecord(session.userId, c.id);
-      if (found) {
-        openRecord = found;
-        break;
+    // 優先使用前端傳入的 caseId 找打卡紀錄
+    if (caseId) {
+      openRecord = await findOpenClockRecord(session.userId, caseId);
+    }
+
+    // 若未找到，遍歷所有個案尋找
+    if (!openRecord) {
+      const cases = await getCases(session.orgId);
+      for (const c of cases) {
+        const found = await findOpenClockRecord(session.userId, c.id);
+        if (found) {
+          openRecord = found;
+          break;
+        }
       }
     }
 
@@ -59,4 +68,8 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ error: '無效的打卡類型' }, { status: 400 });
+  } catch (err) {
+    console.error('Clock API error:', err);
+    return NextResponse.json({ error: '系統錯誤' }, { status: 500 });
+  }
 }

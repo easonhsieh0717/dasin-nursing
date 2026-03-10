@@ -129,17 +129,23 @@ export default function ClockPage() {
         </div>
 
         {/* Case selector */}
-        {cases.length > 1 && (
+        {cases.length > 0 && (
           <div className="mb-6">
-            <select
-              value={selectedCase}
-              onChange={(e) => setSelectedCase(e.target.value)}
-              className="px-4 py-2 border rounded-lg text-base bg-white"
-            >
-              {cases.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            {cases.length === 1 ? (
+              <div className="px-4 py-2 text-base text-gray-700 font-medium bg-white border rounded-lg">
+                {cases[0].name}
+              </div>
+            ) : (
+              <select
+                value={selectedCase}
+                onChange={(e) => setSelectedCase(e.target.value)}
+                className="px-4 py-2 border rounded-lg text-base bg-white"
+              >
+                {cases.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
           </div>
         )}
 

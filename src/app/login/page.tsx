@@ -60,6 +60,7 @@ export default function LoginPage() {
               onChange={(e) => setCode(e.target.value)}
               placeholder="請輸入代碼"
               className="w-full px-4 py-2 border rounded-lg"
+              autoComplete="organization"
               required
             />
           </div>
@@ -74,6 +75,7 @@ export default function LoginPage() {
               onChange={(e) => setAccount(e.target.value)}
               placeholder="請輸入帳號"
               className="w-full px-4 py-2 border rounded-lg"
+              autoComplete="username"
               required
             />
           </div>
@@ -88,6 +90,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="請輸入密碼"
               className="w-full px-4 py-2 border rounded-lg"
+              autoComplete="current-password"
               required
             />
           </div>

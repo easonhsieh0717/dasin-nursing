@@ -134,7 +134,7 @@ export default function CasesPage() {
         })}
         {totalPages > 5 && <span>... {totalPages}</span>}
         <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} className="px-3 py-1 border rounded disabled:opacity-30">&gt;</button>
-        <span className="ml-4 text-sm text-gray-500">共 {total} 筆 | 10 / page</span>
+        <span className="ml-4 text-sm text-gray-500">共 {total} 筆 | 每頁 10 筆</span>
       </div>
 
       {/* Modal */}

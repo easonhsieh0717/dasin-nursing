@@ -37,7 +37,12 @@ export default function SpecialPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('確定要刪除？')) return;
-    await fetch(`/api/admin/special?id=${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/admin/special?id=${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || '刪除失敗');
+      return;
+    }
     fetchData();
   };
 
@@ -69,11 +74,16 @@ export default function SpecialPage() {
       endTime: form.endTime,
     };
 
-    await fetch('/api/admin/special', {
+    const res = await fetch('/api/admin/special', {
       method: editing ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || '儲存失敗');
+      return;
+    }
     setShowModal(false);
     fetchData();
   };

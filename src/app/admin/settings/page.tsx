@@ -31,11 +31,19 @@ export default function SettingsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<RateSettings | null>(null);
   const [form, setForm] = useState(defaultForm);
+  const [loading, setLoading] = useState(true);
 
   const fetchSettings = async () => {
-    const res = await fetch('/api/admin/settings');
-    const data = await res.json();
-    setSettings(data.data || []);
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/settings');
+      const data = await res.json();
+      setSettings(data.data || []);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchSettings(); }, []);
@@ -80,61 +88,71 @@ export default function SettingsPage() {
       dialysisOvertimeRate: parseFloat(form.dialysisOvertimeRate),
     };
 
-    await fetch('/api/admin/settings', {
+    const res = await fetch('/api/admin/settings', {
       method: editing ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || '儲存失敗');
+      return;
+    }
     setShowModal(false);
     fetchSettings();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('確定要刪除此費率設定？')) return;
-    await fetch(`/api/admin/settings?id=${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/admin/settings?id=${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || '刪除失敗');
+      return;
+    }
     fetchSettings();
   };
 
   const F = ({ label, field, unit = '元' }: { label: string; field: string; unit?: string }) => (
-    <div className="flex items-center gap-2">
-      <label className="w-48 text-sm font-bold text-gray-700">{label}</label>
+    <div className="flex items-center gap-2 mb-1">
+      <label className="w-32 sm:w-48 text-xs sm:text-sm font-bold text-gray-700 shrink-0">{label}</label>
       <input
         type="number"
         value={form[field as keyof typeof form]}
         onChange={e => setForm({ ...form, [field]: e.target.value })}
-        className="w-32 px-3 py-2 border rounded text-right"
+        className="w-24 sm:w-32 px-2 sm:px-3 py-1.5 sm:py-2 border rounded text-right text-sm"
       />
-      <span className="text-sm text-gray-500">{unit}</span>
+      <span className="text-xs sm:text-sm text-gray-500">{unit}</span>
     </div>
   );
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-800">費率設定（每年可調整）</h2>
-        <button onClick={openAdd} className="px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700">
+    <div className="p-3 sm:p-6">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <h2 className="text-base sm:text-xl font-bold text-gray-800">費率設定</h2>
+        <button onClick={openAdd} className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700 text-sm">
           新增費率版本
         </button>
       </div>
 
       {/* Current settings display */}
       {settings.map(rs => (
-        <div key={rs.id} className="bg-white rounded-lg shadow p-6 mb-4">
-          <div className="flex items-center justify-between mb-4">
+        <div key={rs.id} className="bg-white rounded-lg shadow p-3 sm:p-6 mb-4">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div>
-              <h3 className="text-lg font-bold text-blue-800">{rs.label}</h3>
-              <p className="text-sm text-gray-500">生效日期：{rs.effectiveDate}</p>
+              <h3 className="text-base sm:text-lg font-bold text-blue-800">{rs.label}</h3>
+              <p className="text-xs sm:text-sm text-gray-500">生效日期：{rs.effectiveDate}</p>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => openEdit(rs)} className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">編輯</button>
-              <button onClick={() => handleDelete(rs.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600">刪除</button>
+            <div className="flex gap-1 sm:gap-2">
+              <button onClick={() => openEdit(rs)} className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded text-xs sm:text-sm hover:bg-blue-700">編輯</button>
+              <button onClick={() => handleDelete(rs.id)} className="px-2 sm:px-3 py-1 bg-red-500 text-white rounded text-xs sm:text-sm hover:bg-red-600">刪除</button>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div>
-              <h4 className="font-bold text-orange-700 mb-2 border-b pb-1">主要地區（雙北、台中、台南、高雄）</h4>
-              <table className="w-full text-sm">
+              <h4 className="font-bold text-orange-700 mb-2 border-b pb-1 text-sm">主要地區（雙北、台中、台南、高雄）</h4>
+              <table className="w-full text-xs sm:text-sm">
                 <tbody>
                   <tr><td className="py-1">日班 08:00-20:00</td><td className="text-right font-bold">{rs.mainDayRate} 元/時</td></tr>
                   <tr><td className="py-1">夜班 20:00-08:00</td><td className="text-right font-bold">{rs.mainNightRate} 元/時</td></tr>
@@ -144,8 +162,8 @@ export default function SettingsPage() {
               </table>
             </div>
             <div>
-              <h4 className="font-bold text-orange-700 mb-2 border-b pb-1">其他地區</h4>
-              <table className="w-full text-sm">
+              <h4 className="font-bold text-orange-700 mb-2 border-b pb-1 text-sm">其他地區</h4>
+              <table className="w-full text-xs sm:text-sm">
                 <tbody>
                   <tr><td className="py-1">日班 08:00-20:00</td><td className="text-right font-bold">{rs.otherDayRate} 元/時</td></tr>
                   <tr><td className="py-1">夜班 20:00-08:00</td><td className="text-right font-bold">{rs.otherNightRate} 元/時</td></tr>
@@ -156,9 +174,9 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t">
-            <h4 className="font-bold text-orange-700 mb-2">其他費率</h4>
-            <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="mt-3 sm:mt-4 pt-3 border-t">
+            <h4 className="font-bold text-orange-700 mb-2 text-sm">其他費率</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 text-xs sm:text-sm">
               <div>24小時薪資：<span className="font-bold">{rs.fullDayRate24h} 元</span></div>
               <div>最低計費時數：<span className="font-bold">{rs.minBillingHours} 小時</span></div>
               <div>偏遠地區每班補貼：<span className="font-bold">{rs.remoteAreaSubsidy} 元</span></div>
@@ -167,9 +185,9 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t">
-            <h4 className="font-bold text-orange-700 mb-2">特殊倍率（由「特殊狀況」管理）</h4>
-            <div className="text-sm text-gray-600 space-y-1">
+          <div className="mt-3 sm:mt-4 pt-3 border-t">
+            <h4 className="font-bold text-orange-700 mb-2 text-sm">特殊倍率（由「特殊狀況」管理）</h4>
+            <div className="text-xs sm:text-sm text-gray-600 space-y-1">
               <div>除夕~初五：<span className="font-bold text-red-600">2 倍</span></div>
               <div>颱風/天災：<span className="font-bold text-red-600">1.5 倍</span></div>
               <div>負壓隔離病房：<span className="font-bold text-red-600">1.5 倍</span></div>
@@ -179,40 +197,44 @@ export default function SettingsPage() {
         </div>
       ))}
 
-      {settings.length === 0 && (
+      {loading && (
+        <div className="text-center py-12 text-gray-400">載入中...</div>
+      )}
+
+      {!loading && settings.length === 0 && (
         <div className="text-center py-12 text-gray-400">尚無費率設定，請點擊「新增費率版本」</div>
       )}
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 overflow-y-auto py-8">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg space-y-4">
-            <h2 className="text-xl font-bold">{editing ? '編輯費率' : '新增費率版本'}</h2>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 overflow-y-auto py-4 sm:py-8">
+          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-lg mx-3 space-y-3 sm:space-y-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg sm:text-xl font-bold">{editing ? '編輯費率' : '新增費率版本'}</h2>
 
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               <div className="flex items-center gap-2">
-                <label className="w-48 text-sm font-bold text-gray-700">生效日期</label>
-                <input type="date" value={form.effectiveDate} onChange={e => setForm({...form, effectiveDate: e.target.value})} className="px-3 py-2 border rounded" />
+                <label className="w-32 sm:w-48 text-xs sm:text-sm font-bold text-gray-700 shrink-0">生效日期</label>
+                <input type="date" value={form.effectiveDate} onChange={e => setForm({...form, effectiveDate: e.target.value})} className="px-2 sm:px-3 py-1.5 sm:py-2 border rounded text-sm" />
               </div>
               <div className="flex items-center gap-2">
-                <label className="w-48 text-sm font-bold text-gray-700">說明</label>
-                <input value={form.label} onChange={e => setForm({...form, label: e.target.value})} className="flex-1 px-3 py-2 border rounded" placeholder="例：114年費率" />
+                <label className="w-32 sm:w-48 text-xs sm:text-sm font-bold text-gray-700 shrink-0">說明</label>
+                <input value={form.label} onChange={e => setForm({...form, label: e.target.value})} className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 border rounded text-sm" placeholder="例：114年費率" />
               </div>
 
-              <div className="border-t pt-3 mt-3">
-                <h4 className="font-bold text-orange-700 mb-2">主要地區時薪</h4>
+              <div className="border-t pt-2 sm:pt-3 mt-2 sm:mt-3">
+                <h4 className="font-bold text-orange-700 mb-2 text-sm">主要地區時薪</h4>
                 <F label="日班 08:00-20:00" field="mainDayRate" unit="元/時" />
                 <F label="夜班 20:00-08:00" field="mainNightRate" unit="元/時" />
               </div>
 
-              <div className="border-t pt-3">
-                <h4 className="font-bold text-orange-700 mb-2">其他地區時薪</h4>
+              <div className="border-t pt-2 sm:pt-3">
+                <h4 className="font-bold text-orange-700 mb-2 text-sm">其他地區時薪</h4>
                 <F label="日班 08:00-20:00" field="otherDayRate" unit="元/時" />
                 <F label="夜班 20:00-08:00" field="otherNightRate" unit="元/時" />
               </div>
 
-              <div className="border-t pt-3">
-                <h4 className="font-bold text-orange-700 mb-2">其他費率</h4>
+              <div className="border-t pt-2 sm:pt-3">
+                <h4 className="font-bold text-orange-700 mb-2 text-sm">其他費率</h4>
                 <F label="24小時薪資" field="fullDayRate24h" />
                 <F label="最低計費時數" field="minBillingHours" unit="小時" />
                 <F label="偏遠地區每班補貼" field="remoteAreaSubsidy" />
@@ -222,8 +244,8 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={handleSave} className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700">儲存</button>
-              <button onClick={() => setShowModal(false)} className="px-5 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">取消</button>
+              <button onClick={handleSave} className="px-4 sm:px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">儲存</button>
+              <button onClick={() => setShowModal(false)} className="px-4 sm:px-5 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 text-sm">取消</button>
             </div>
           </div>
         </div>

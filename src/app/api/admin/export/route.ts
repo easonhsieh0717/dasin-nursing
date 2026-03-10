@@ -19,6 +19,7 @@ function fmtDate(dateStr: string | null): string {
 }
 
 export async function GET(request: Request) {
+  try {
   const session = await getSession();
   if (!session || session.role !== 'admin') {
     return NextResponse.json({ error: '無權限' }, { status: 403 });
@@ -153,4 +154,8 @@ export async function GET(request: Request) {
       'Content-Disposition': `attachment; filename="clock_records_${new Date().toISOString().slice(0, 10)}.xlsx"`,
     },
   });
+  } catch (err) {
+    console.error('Export error:', err);
+    return NextResponse.json({ error: '匯出失敗' }, { status: 500 });
+  }
 }

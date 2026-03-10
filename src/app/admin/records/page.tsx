@@ -29,9 +29,14 @@ function formatDT(s: string | null): string {
   return `${d.getFullYear()}年${String(d.getMonth()+1).padStart(2,'0')}月${String(d.getDate()).padStart(2,'0')}日 ${String(d.getHours()).padStart(2,'0')}點${String(d.getMinutes()).padStart(2,'0')}分`;
 }
 
-function fmtCoords(lat: number|null, lng: number|null): string {
-  if (lat === null || lng === null) return '';
-  return `${lat}, ${lng}`;
+function CoordsLink({ lat, lng }: { lat: number | null; lng: number | null }) {
+  if (lat === null || lng === null) return <span></span>;
+  const url = `https://www.google.com/maps?q=${lat},${lng}`;
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+      {lat.toFixed(4)}, {lng.toFixed(4)}
+    </a>
+  );
 }
 
 export default function AdminRecordsPage() {
@@ -100,7 +105,12 @@ export default function AdminRecordsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('確定要刪除此紀錄？')) return;
-    await fetch(`/api/admin/records?id=${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/admin/records?id=${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || '刪除失敗');
+      return;
+    }
     fetchRecords();
   };
 
@@ -147,11 +157,16 @@ export default function AdminRecordsPage() {
       salary: parseFloat(formData.salary) || 0,
     };
 
-    await fetch('/api/admin/records', {
+    const res = await fetch('/api/admin/records', {
       method: editingRecord ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || '儲存失敗');
+      return;
+    }
 
     setShowModal(false);
     fetchRecords();
@@ -227,8 +242,8 @@ export default function AdminRecordsPage() {
               <td>{r.caseName}</td>
               <td>{r.caseCode}</td>
               <td>{r.userName}</td>
-              <td className="text-xs">{fmtCoords(r.clockInLat, r.clockInLng)}</td>
-              <td className="text-xs">{fmtCoords(r.clockOutLat, r.clockOutLng)}</td>
+              <td className="text-xs"><CoordsLink lat={r.clockInLat} lng={r.clockInLng} /></td>
+              <td className="text-xs"><CoordsLink lat={r.clockOutLat} lng={r.clockOutLng} /></td>
               <td>{formatDT(r.clockInTime)}</td>
               <td>{formatDT(r.clockOutTime)}</td>
               <td className="font-bold text-green-700">{r.calculatedSalary ?? r.salary}</td>
@@ -264,45 +279,45 @@ export default function AdminRecordsPage() {
         })}
         {totalPages > 5 && <span>... {totalPages}</span>}
         <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} className="px-3 py-1 border rounded disabled:opacity-30">&gt;</button>
-        <span className="ml-4 text-sm text-gray-500">共 {total} 筆 | 10 / page</span>
+        <span className="ml-4 text-sm text-gray-500">共 {total} 筆 | 每頁 10 筆</span>
       </div>
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg space-y-4">
-            <h2 className="text-xl font-bold">{editingRecord ? '編輯紀錄' : '新增紀錄'}</h2>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 overflow-y-auto py-4 sm:py-8">
+          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-lg mx-3 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg sm:text-xl font-bold">{editingRecord ? '編輯紀錄' : '新增紀錄'}</h2>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">特護</label>
-                <select value={formData.userId} onChange={e => setFormData({...formData, userId: e.target.value})} className="w-full px-2 py-1 border rounded">
+                <select value={formData.userId} onChange={e => setFormData({...formData, userId: e.target.value})} className="w-full px-2 py-1.5 border rounded text-sm">
                   {nurses.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">個案</label>
-                <select value={formData.caseId} onChange={e => setFormData({...formData, caseId: e.target.value})} className="w-full px-2 py-1 border rounded">
+                <select value={formData.caseId} onChange={e => setFormData({...formData, caseId: e.target.value})} className="w-full px-2 py-1.5 border rounded text-sm">
                   {cases.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">上班時間</label>
-                <input type="datetime-local" value={formData.clockInTime} onChange={e => setFormData({...formData, clockInTime: e.target.value})} className="w-full px-2 py-1 border rounded" />
+                <input type="datetime-local" value={formData.clockInTime} onChange={e => setFormData({...formData, clockInTime: e.target.value})} className="w-full px-2 py-1.5 border rounded text-sm" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">下班時間</label>
-                <input type="datetime-local" value={formData.clockOutTime} onChange={e => setFormData({...formData, clockOutTime: e.target.value})} className="w-full px-2 py-1 border rounded" />
+                <input type="datetime-local" value={formData.clockOutTime} onChange={e => setFormData({...formData, clockOutTime: e.target.value})} className="w-full px-2 py-1.5 border rounded text-sm" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">薪資</label>
-                <input type="number" value={formData.salary} onChange={e => setFormData({...formData, salary: e.target.value})} className="w-full px-2 py-1 border rounded" />
+                <input type="number" value={formData.salary} onChange={e => setFormData({...formData, salary: e.target.value})} className="w-full px-2 py-1.5 border rounded text-sm" />
               </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={handleSave} className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700">儲存</button>
-              <button onClick={() => setShowModal(false)} className="px-5 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">取消</button>
+              <button onClick={handleSave} className="px-4 sm:px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">儲存</button>
+              <button onClick={() => setShowModal(false)} className="px-4 sm:px-5 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 text-sm">取消</button>
             </div>
           </div>
         </div>
