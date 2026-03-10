@@ -1,0 +1,9 @@
+{
+  "name": "達心特護打卡系統",
+  "short_name": "達心打卡",
+  "start_url": "/clock",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#2563eb",
+  "icons": []
+}

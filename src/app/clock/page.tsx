@@ -55,6 +55,27 @@ export default function ClockPage() {
     });
   };
 
+  // 請求推播通知權限並訂閱（fire-and-forget，不影響打卡流程）
+  const requestPushPermission = async () => {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;
+      const reg = await navigator.serviceWorker.ready;
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+      });
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription }),
+      });
+    } catch {
+      // 訂閱失敗不影響打卡
+    }
+  };
+
   const handleClock = async (type: 'in' | 'out') => {
     setLoading(true);
     setMessage('');
@@ -84,6 +105,11 @@ export default function ClockPage() {
       const timeStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
       setMessage(`${type === 'in' ? '上班' : '下班'}打卡成功！ ${timeStr}`);
       setMessageType('success');
+
+      // 上班打卡成功後，嘗試訂閱推播通知（不等待結果）
+      if (type === 'in') {
+        requestPushPermission();
+      }
 
       // 打卡成功後重新取得狀態
       await fetchStatus();

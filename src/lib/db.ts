@@ -386,6 +386,50 @@ export async function deleteRateSettings(id: string): Promise<boolean> {
   const db = readDB(); if (!db.rateSettings) return false; const idx = db.rateSettings.findIndex(r => r.id === id); if (idx === -1) return false; db.rateSettings.splice(idx, 1); writeDB(db); return true;
 }
 
+// ===== Push Subscriptions =====
+export async function savePushSubscription(userId: string, orgId: string, subscription: object): Promise<void> {
+  if (isSupabase) {
+    await supabase.from('push_subscriptions').upsert(
+      { user_id: userId, org_id: orgId, subscription, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
+    return;
+  }
+  // Local fallback: no-op (push only works with Supabase in production)
+}
+
+export async function getPushSubscriptionsByUserIds(userIds: string[]): Promise<Array<{ userId: string; subscription: object }>> {
+  if (isSupabase) {
+    const { data } = await supabase.from('push_subscriptions').select('user_id, subscription').in('user_id', userIds);
+    return (data || []).map(r => ({ userId: r.user_id, subscription: r.subscription }));
+  }
+  return [];
+}
+
+export async function deletePushSubscription(userId: string): Promise<void> {
+  if (isSupabase) {
+    await supabase.from('push_subscriptions').delete().eq('user_id', userId);
+  }
+}
+
+/** 查詢所有超過指定時數未打卡下班的紀錄 */
+export async function getOverdueClockRecords(hoursThreshold: number): Promise<ClockRecord[]> {
+  if (isSupabase) {
+    const threshold = new Date(Date.now() - hoursThreshold * 60 * 60 * 1000).toISOString();
+    const { data } = await supabase
+      .from('clock_records')
+      .select('*')
+      .is('clock_out_time', null)
+      .not('clock_in_time', 'is', null)
+      .lt('clock_in_time', threshold);
+    return (data || []).map(toRecord);
+  }
+  const cutoff = Date.now() - hoursThreshold * 60 * 60 * 1000;
+  return readDB().clockRecords.filter(
+    r => r.clockInTime && !r.clockOutTime && new Date(r.clockInTime).getTime() < cutoff
+  );
+}
+
 // ===== Enrichment =====
 export async function enrichRecords(records: ClockRecord[]): Promise<Array<ClockRecord & { userName: string; caseName: string; caseCode: string }>> {
   if (isSupabase) {
