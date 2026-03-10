@@ -210,6 +210,7 @@ export default function AdminRecordsPage() {
         <thead>
           <tr>
             <th>個案名稱</th>
+            <th>個案代碼</th>
             <th>特護名稱</th>
             <th>上班經緯度</th>
             <th>下班經緯度</th>
@@ -224,6 +225,7 @@ export default function AdminRecordsPage() {
           {records.map(r => (
             <tr key={r.id}>
               <td>{r.caseName}</td>
+              <td>{r.caseCode}</td>
               <td>{r.userName}</td>
               <td className="text-xs">{fmtCoords(r.clockInLat, r.clockInLng)}</td>
               <td className="text-xs">{fmtCoords(r.clockOutLat, r.clockOutLng)}</td>
@@ -240,10 +242,10 @@ export default function AdminRecordsPage() {
             </tr>
           ))}
           {loading && (
-            <tr><td colSpan={9} className="py-8 text-gray-400">載入中...</td></tr>
+            <tr><td colSpan={10} className="py-8 text-gray-400">載入中...</td></tr>
           )}
           {!loading && records.length === 0 && (
-            <tr><td colSpan={9} className="py-8 text-gray-400">尚無紀錄</td></tr>
+            <tr><td colSpan={10} className="py-8 text-gray-400">尚無紀錄</td></tr>
           )}
         </tbody>
       </table>

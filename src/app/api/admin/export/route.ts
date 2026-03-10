@@ -70,6 +70,7 @@ export async function GET(request: Request) {
   // ========== Sheet 1: 打卡紀錄（完整明細） ==========
   const detailRows = computed.map(r => ({
     '個案名稱': r.caseName,
+    '個案代碼': r.caseCode,
     '特護名稱': r.userName,
     '上班經緯度': formatCoords(r.clockInLat, r.clockInLng),
     '下班經緯度': formatCoords(r.clockOutLat, r.clockOutLng),
@@ -83,7 +84,7 @@ export async function GET(request: Request) {
   }));
   const wsDetail = XLSX.utils.json_to_sheet(detailRows);
   wsDetail['!cols'] = [
-    { wch: 15 }, { wch: 10 }, { wch: 30 }, { wch: 30 },
+    { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 30 },
     { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 8 },
   ];
   XLSX.utils.book_append_sheet(wb, wsDetail, '打卡紀錄');
