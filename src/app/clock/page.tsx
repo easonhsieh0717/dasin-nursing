@@ -238,41 +238,37 @@ export default function ClockPage() {
         </button>
       </nav>
 
-      {/* 個案名稱橫幅 — 固定在 navbar 下方，強烈背景色確保醒目 */}
-      <div style={{
-        backgroundColor: bannerBg,
-        padding: '14px 16px',
-        textAlign: 'center',
-      }}>
-        <div style={{
-          fontSize: '22px',
-          fontWeight: 'bold',
-          color: 'white',
-          letterSpacing: '0.05em',
-        }}>
-          {clockStatus ? caseName : '載入中...'}
-        </div>
-        {isClockedIn && (
-          <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', marginTop: '4px' }}>
-            🟠 值班中 · 上班 {clockInTimeStr} · 已 {elapsedStr}
-          </div>
-        )}
-        {!isClockedIn && clockStatus && (
-          <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)', marginTop: '4px' }}>
-            個案代碼：{clockStatus.defaultCaseCode || '—'}
-          </div>
-        )}
-      </div>
-
-      {/* 主內容區：時間 + 按鈕 */}
+      {/* 主內容區：個案名稱 + 時間 + 按鈕 */}
       <div style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '0 24px',
-        minHeight: 'calc(100vh - 140px)',
+        minHeight: 'calc(100vh - 56px)',
       }}>
+
+        {/* 個案名稱 — 貼在時間上方，大字醒目 */}
+        <div style={{ textAlign: 'center', marginBottom: '12px' }}>
+          <div style={{
+            fontSize: '28px',
+            fontWeight: 'bold',
+            color: isClockedIn ? '#ea580c' : '#2563eb',
+            letterSpacing: '0.05em',
+          }}>
+            {clockStatus ? caseName : '載入中...'}
+          </div>
+          {isClockedIn && (
+            <div style={{ fontSize: '13px', color: '#ea580c', marginTop: '4px' }}>
+              🟠 值班中 · 上班 {clockInTimeStr} · 已 {elapsedStr}
+            </div>
+          )}
+          {!isClockedIn && clockStatus && (
+            <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
+              個案代碼：{clockStatus.defaultCaseCode || '—'}
+            </div>
+          )}
+        </div>
 
         {/* 即時時鐘 */}
         <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
