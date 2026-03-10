@@ -98,7 +98,9 @@ export function formatCoords(lat: number | null, lng: number | null): string {
 export function calculateHours(clockIn: string | null, clockOut: string | null): number {
   if (!clockIn || !clockOut) return 0;
   const diff = new Date(clockOut).getTime() - new Date(clockIn).getTime();
-  return Math.round((diff / (1000 * 60 * 60)) * 100) / 100;
+  const hours = diff / (1000 * 60 * 60);
+  // 以 0.5 小時為單位，四捨五入（8.12→8, 8.43→8.5, 8.8→9）
+  return Math.round(hours * 2) / 2;
 }
 
 export function paginate<T>(items: T[], page: number, pageSize: number): { data: T[]; total: number; totalPages: number } {
