@@ -83,10 +83,8 @@ export async function GET(request: Request) {
       caseGroups.get(key)!.records.push(r);
     }
 
-    // ========== 為每個個案建立一個 Excel ==========
-    const zip = new JSZip();
-
-    for (const [, group] of caseGroups) {
+    // ========== 共用：為一個個案建立 Excel Workbook ==========
+    function buildCaseWorkbook(group: { caseName: string; caseCode: string; records: typeof computed }) {
       const wb = XLSX.utils.book_new();
 
       // --- Table 1: 簽到明細 (日期, 時間, 簽到人, 金額) ---
@@ -133,12 +131,33 @@ export async function GET(request: Request) {
       XLSX.utils.sheet_add_aoa(ws, table2Data, { origin: { r: startRow, c: 0 } });
       XLSX.utils.book_append_sheet(wb, ws, '明細');
 
+      return wb;
+    }
+
+    // ========== 單一個案 → 直接下載 Excel；多個個案 → ZIP ==========
+    if (caseGroups.size === 1) {
+      const [, group] = [...caseGroups][0];
+      const wb = buildCaseWorkbook(group);
+      const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      const fileName = `${group.caseName}_${group.caseCode}.xlsx`;
+
+      return new Response(Buffer.from(buf), {
+        headers: {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
+        },
+      });
+    }
+
+    // 多個個案：ZIP 包含每個個案的 Excel
+    const zip = new JSZip();
+    for (const [, group] of caseGroups) {
+      const wb = buildCaseWorkbook(group);
       const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
       const fileName = `${group.caseName}_${group.caseCode}.xlsx`;
       zip.file(fileName, buf);
     }
 
-    // 產生 ZIP
     const zipBuf = await zip.generateAsync({ type: 'nodebuffer' });
 
     return new Response(Buffer.from(zipBuf), {
