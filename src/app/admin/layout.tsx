@@ -34,7 +34,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen bg-gray-100">
       <nav className="bg-white border-b">
         <div className="flex items-center justify-between px-2 sm:px-4">
-          <div className="flex overflow-x-auto no-scrollbar">
+          <div className="flex overflow-x-auto no-scrollbar min-w-0 flex-1" style={{ WebkitOverflowScrolling: 'touch' }}>
             {navItems.map(item => (
               <button
                 key={item.path}
