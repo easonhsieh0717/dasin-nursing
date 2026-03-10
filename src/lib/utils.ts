@@ -7,8 +7,10 @@ interface SpecialConditionForCalc {
 
 /**
  * 計算薪資：根據打卡時段的日/夜班小時數 × 對應費率 × 特殊倍率
- * 日班：06:00 ~ 22:00  →  dayRate
- * 夜班：22:00 ~ 06:00  →  nightRate
+ * 日班：08:00 ~ 20:00  →  dayRate (490/h)
+ * 夜班：20:00 ~ 08:00  →  nightRate (530/h)
+ * 標準白班 12h = 5,880 元 | 標準夜班 12h = 6,360 元
+ * 不滿 1 小時的零頭無條件捨去（Math.floor）
  */
 export function calculateSalary(
   clockIn: string | null,
@@ -27,10 +29,11 @@ export function calculateSalary(
   let nightMinutes = 0;
 
   // 以每分鐘為單位計算日夜班時數
+  // 日班 08:00~20:00 | 夜班 20:00~08:00
   const current = new Date(start);
   while (current.getTime() < end.getTime()) {
     const hour = current.getHours();
-    if (hour >= 6 && hour < 22) {
+    if (hour >= 8 && hour < 20) {
       dayMinutes++;
     } else {
       nightMinutes++;
@@ -38,8 +41,9 @@ export function calculateSalary(
     current.setMinutes(current.getMinutes() + 1);
   }
 
-  const dayHours = dayMinutes / 60;
-  const nightHours = nightMinutes / 60;
+  // 不滿1小時的零頭無條件捨去
+  const dayHours = Math.floor(dayMinutes / 60);
+  const nightHours = Math.floor(nightMinutes / 60);
 
   const salary = (dayHours * dayRate + nightHours * nightRate) * specialMultiplier;
   return Math.round(salary);
