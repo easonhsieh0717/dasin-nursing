@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import * as XLSX from 'xlsx';
 
 interface Nurse {
   id: string;
@@ -13,6 +14,17 @@ interface Nurse {
   accountName: string;
 }
 
+interface ImportResult {
+  success: boolean;
+  updated: number;
+  created: number;
+  skipped: number;
+  defaultRate: number;
+  updatedNames: string[];
+  createdNames: string[];
+  totalImported: number;
+}
+
 export default function NursesPage() {
   const [nurses, setNurses] = useState<Nurse[]>([]);
   const [page, setPage] = useState(1);
@@ -23,6 +35,9 @@ export default function NursesPage() {
   const [editing, setEditing] = useState<Nurse | null>(null);
   const [form, setForm] = useState({ name: '', account: '', password: '', hourlyRate: '200', bank: '', accountNo: '', accountName: '' });
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchNurses = useCallback(async () => {
     setLoading(true);
@@ -85,9 +100,95 @@ export default function NursesPage() {
     fetchNurses();
   };
 
+  // ===== Excel 匯入 =====
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const wb = XLSX.read(arrayBuffer, { type: 'array' });
+
+      // 嘗試找「特護帳戶」分頁，找不到就用第一個
+      const sheetName = wb.SheetNames.find(n => n.includes('特護帳戶')) || wb.SheetNames[0];
+      const sheet = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 });
+
+      // 解析資料（跳過標頭）
+      const items: { name: string; bank: string; accountNo: string; accountName: string }[] = [];
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || !row[0]) continue;
+        const name = String(row[0] || '').trim();
+        const accountName = String(row[2] || '').trim();
+        const bank = String(row[3] || '').trim();
+        const accountNo = String(row[4] || '').trim();
+        if (name) {
+          items.push({ name, bank, accountNo, accountName: accountName || name });
+        }
+      }
+
+      if (items.length === 0) {
+        alert('Excel 中沒有找到有效資料');
+        setImporting(false);
+        return;
+      }
+
+      // 確認匯入
+      if (!confirm(`從「${sheetName}」解析到 ${items.length} 筆特護帳戶資料，確認匯入？\n\n（已存在的特護會更新銀行資訊，新特護會自動建立帳號）`)) {
+        setImporting(false);
+        if (fileRef.current) fileRef.current.value = '';
+        return;
+      }
+
+      // 分批送出（每批 50 筆，避免超時）
+      const batchSize = 50;
+      let totalResult: ImportResult = {
+        success: true, updated: 0, created: 0, skipped: 0,
+        defaultRate: 0, updatedNames: [], createdNames: [], totalImported: 0,
+      };
+
+      for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize);
+        const res = await fetch('/api/admin/nurses/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: batch }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          alert(`匯入失敗（第 ${i + 1}-${i + batch.length} 筆）：${errData.error}`);
+          break;
+        }
+
+        const result: ImportResult = await res.json();
+        totalResult.updated += result.updated;
+        totalResult.created += result.created;
+        totalResult.skipped += result.skipped;
+        totalResult.defaultRate = result.defaultRate;
+        totalResult.totalImported += result.totalImported;
+        if (result.updatedNames) totalResult.updatedNames.push(...result.updatedNames);
+        if (result.createdNames) totalResult.createdNames.push(...result.createdNames);
+      }
+
+      setImportResult(totalResult);
+      fetchNurses();
+    } catch (err) {
+      console.error('Import error:', err);
+      alert('讀取 Excel 失敗，請確認檔案格式');
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
   return (
     <div className="p-3 sm:p-6">
-      {/* Search + Add */}
+      {/* Search + Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
           <label className="font-bold text-gray-700 text-sm sm:text-base whitespace-nowrap">特護名稱</label>
@@ -98,8 +199,33 @@ export default function NursesPage() {
             placeholder="搜尋..."
           />
         </div>
-        <button onClick={openAdd} className="px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700 text-sm self-end">新增</button>
+        <div className="flex gap-2 self-end">
+          <button onClick={openAdd} className="px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700 text-sm">新增</button>
+          <label className={`px-4 py-2 bg-orange-600 text-white rounded font-bold hover:bg-orange-700 text-sm cursor-pointer ${importing ? 'opacity-50 pointer-events-none' : ''}`}>
+            {importing ? '匯入中...' : '匯入 Excel'}
+            <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFileSelect} className="hidden" />
+          </label>
+        </div>
       </div>
+
+      {/* Import Result */}
+      {importResult && (
+        <div className="bg-green-50 border border-green-300 rounded-lg p-4 mb-4 text-sm">
+          <div className="font-bold text-green-800 mb-2">匯入完成！</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-green-700">
+            <div>更新：<span className="font-bold">{importResult.updated}</span> 筆</div>
+            <div>新增：<span className="font-bold">{importResult.created}</span> 筆</div>
+            <div>略過：<span className="font-bold">{importResult.skipped}</span> 筆</div>
+            <div>預設時薪：<span className="font-bold">{importResult.defaultRate}</span></div>
+          </div>
+          {importResult.created > 0 && (
+            <div className="mt-2 text-xs text-green-600">
+              新建帳號預設密碼為 <span className="font-mono font-bold">0000</span>，請提醒特護登入後修改。
+            </div>
+          )}
+          <button onClick={() => setImportResult(null)} className="mt-2 text-xs text-gray-500 underline">關閉</button>
+        </div>
+      )}
 
       <div className="table-wrap">
       <table>
