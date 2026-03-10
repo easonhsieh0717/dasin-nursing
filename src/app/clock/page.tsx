@@ -173,43 +173,56 @@ export default function ClockPage() {
         </button>
       </nav>
 
-      {/* 個案名稱顯示 */}
-      {clockStatus && (
-        <div className={`border-b px-4 py-2 text-center ${isClockedIn ? 'bg-orange-50 border-orange-300' : 'bg-blue-50 border-blue-200'}`}>
-          <div className={`font-bold text-sm sm:text-base ${isClockedIn ? 'text-orange-800' : 'text-blue-800'}`}>
-            {isClockedIn ? '目前正在值班中' : '目前個案'}
-          </div>
-          <div className={`text-xs sm:text-sm mt-1 ${isClockedIn ? 'text-orange-600' : 'text-blue-600'}`}>
-            {isClockedIn
+      {/* 個案名稱顯示（使用 inline style 確保手機瀏覽器正確顯示） */}
+      <div style={{
+        borderBottom: '1px solid',
+        borderColor: isClockedIn ? '#fdba74' : '#bfdbfe',
+        backgroundColor: isClockedIn ? '#fff7ed' : '#eff6ff',
+        padding: '8px 16px',
+        textAlign: 'center',
+      }}>
+        <div style={{ fontWeight: 'bold', fontSize: '14px', color: isClockedIn ? '#9a3412' : '#1e40af' }}>
+          {isClockedIn ? '目前正在值班中' : '目前個案'}
+        </div>
+        <div style={{ fontSize: '12px', marginTop: '4px', color: isClockedIn ? '#ea580c' : '#2563eb' }}>
+          {clockStatus
+            ? (isClockedIn
               ? <>個案：{clockStatus.openRecord?.caseName || ''} · 上班時間：{clockInTimeStr} · 已經過 {elapsedStr}</>
               : <>個案代碼：{clockStatus.defaultCaseCode || ''} · 個案名稱：{clockStatus.defaultCaseName || ''}</>
-            }
-          </div>
+            )
+            : '載入中...'
+          }
         </div>
-      )}
+      </div>
 
       {/* Main content */}
-      <div className="flex flex-col items-center justify-center px-6" style={{ minHeight: 'calc(100vh - 110px)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px', minHeight: 'calc(100vh - 140px)' }}>
         {/* 即時時鐘 */}
-        <div className="mb-8 text-center">
-          <div className="text-5xl sm:text-6xl font-mono font-bold text-gray-800 tracking-wider">
+        <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '3rem', fontFamily: 'monospace', fontWeight: 'bold', color: '#1f2937', letterSpacing: '0.05em' }}>
             {String(currentTime.getHours()).padStart(2, '0')}:{String(currentTime.getMinutes()).padStart(2, '0')}
-            <span className="text-3xl sm:text-4xl text-gray-400">:{String(currentTime.getSeconds()).padStart(2, '0')}</span>
+            <span style={{ fontSize: '1.875rem', color: '#9ca3af' }}>:{String(currentTime.getSeconds()).padStart(2, '0')}</span>
           </div>
-          <div className="text-sm text-gray-500 mt-2">
+          <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
             {currentTime.getFullYear()}/{String(currentTime.getMonth()+1).padStart(2,'0')}/{String(currentTime.getDate()).padStart(2,'0')}
             {' '}
             {['日','一','二','三','四','五','六'][currentTime.getDay()]}
           </div>
         </div>
 
-        {/* Clock buttons — 圓形設計 */}
-        <div className="flex items-center justify-center gap-8 sm:gap-16">
+        {/* Clock buttons — 圓形設計（使用 inline style 確保手機瀏覽器正確顯示） */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2rem' }}>
           <button
             onClick={() => handleClock('in')}
             disabled={loading || isClockedIn}
-            className="w-36 h-36 sm:w-40 sm:h-40 rounded-full text-white text-3xl sm:text-4xl font-bold shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100"
-            style={{ background: isClockedIn ? '#9ca3af' : 'linear-gradient(135deg, #34d058, #28a745)' }}
+            style={{
+              width: '144px', height: '144px', borderRadius: '50%', flexShrink: 0,
+              background: isClockedIn ? '#9ca3af' : 'linear-gradient(135deg, #34d058, #28a745)',
+              color: 'white', fontSize: '1.875rem', fontWeight: 'bold',
+              border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+              opacity: (loading || isClockedIn) ? 0.3 : 1,
+              cursor: (loading || isClockedIn) ? 'default' : 'pointer',
+            }}
           >
             上班
           </button>
@@ -217,8 +230,14 @@ export default function ClockPage() {
           <button
             onClick={() => handleClock('out')}
             disabled={loading || !isClockedIn}
-            className="w-36 h-36 sm:w-40 sm:h-40 rounded-full text-white text-3xl sm:text-4xl font-bold shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100"
-            style={{ background: !isClockedIn ? '#9ca3af' : 'linear-gradient(135deg, #ff6b6b, #dc3545)' }}
+            style={{
+              width: '144px', height: '144px', borderRadius: '50%', flexShrink: 0,
+              background: !isClockedIn ? '#9ca3af' : 'linear-gradient(135deg, #ff6b6b, #dc3545)',
+              color: 'white', fontSize: '1.875rem', fontWeight: 'bold',
+              border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+              opacity: (loading || !isClockedIn) ? 0.3 : 1,
+              cursor: (loading || !isClockedIn) ? 'default' : 'pointer',
+            }}
           >
             下班
           </button>
