@@ -173,28 +173,36 @@ export default function ClockPage() {
         </button>
       </nav>
 
-      {/* 個案名稱顯示 — 使用強烈配色確保醒目 */}
-      <div style={{
-        backgroundColor: isClockedIn ? '#f97316' : '#2563eb',
-        padding: '12px 16px',
-        textAlign: 'center',
-      }}>
-        <div style={{ fontWeight: 'bold', fontSize: '16px', color: 'white' }}>
-          {isClockedIn ? '🟠 目前正在值班中' : '📋 目前個案'}
-        </div>
-        <div style={{ fontSize: '14px', marginTop: '4px', color: 'white' }}>
-          {clockStatus
-            ? (isClockedIn
-              ? <>個案：{clockStatus.openRecord?.caseName || ''} · 上班：{clockInTimeStr} · 已 {elapsedStr}</>
-              : <>代碼：{clockStatus.defaultCaseCode || '—'} · 名稱：{clockStatus.defaultCaseName || '—'}</>
-            )
-            : '載入中...'
-          }
-        </div>
-      </div>
-
       {/* Main content */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px', minHeight: 'calc(100vh - 140px)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px', minHeight: 'calc(100vh - 48px)' }}>
+
+        {/* 個案名稱 — 大字醒目，放在時間上方 */}
+        <div style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+          <div style={{
+            fontSize: '2rem',
+            fontWeight: 'bold',
+            color: isClockedIn ? '#ea580c' : '#1d4ed8',
+            letterSpacing: '0.05em',
+          }}>
+            {clockStatus
+              ? (isClockedIn
+                ? (clockStatus.openRecord?.caseName || '')
+                : (clockStatus.defaultCaseName || '—'))
+              : '載入中...'
+            }
+          </div>
+          {isClockedIn && (
+            <div style={{ fontSize: '0.85rem', color: '#ea580c', marginTop: '4px', fontWeight: '600' }}>
+              🟠 值班中 · 上班 {clockInTimeStr} · 已 {elapsedStr}
+            </div>
+          )}
+          {!isClockedIn && clockStatus && (
+            <div style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '4px' }}>
+              代碼：{clockStatus.defaultCaseCode || '—'}
+            </div>
+          )}
+        </div>
+
         {/* 即時時鐘 */}
         <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
           <div style={{ fontSize: '3rem', fontFamily: 'monospace', fontWeight: 'bold', color: '#1f2937', letterSpacing: '0.05em' }}>
