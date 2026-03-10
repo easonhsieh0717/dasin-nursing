@@ -39,6 +39,7 @@ export default function AdminRecordsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   // Filters
   const [startTime, setStartTime] = useState('');
@@ -60,6 +61,7 @@ export default function AdminRecordsPage() {
   });
 
   const fetchRecords = useCallback(async () => {
+    setLoading(true);
     const params = new URLSearchParams({ page: String(page), pageSize: '10' });
     if (startTime) params.set('startTime', startTime);
     if (endTime) params.set('endTime', endTime);
@@ -74,6 +76,7 @@ export default function AdminRecordsPage() {
     setRecords(data.data || []);
     setTotalPages(data.totalPages || 1);
     setTotal(data.total || 0);
+    setLoading(false);
   }, [page, startTime, endTime, clockType, settlementType, caseCode, caseName, userName]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
@@ -123,6 +126,14 @@ export default function AdminRecordsPage() {
   };
 
   const handleSave = async () => {
+    // 驗證：上班時間必須早於下班時間
+    if (formData.clockInTime && formData.clockOutTime) {
+      if (new Date(formData.clockInTime) >= new Date(formData.clockOutTime)) {
+        alert('上班時間必須早於下班時間');
+        return;
+      }
+    }
+
     const body = {
       ...(editingRecord ? { id: editingRecord.id } : {}),
       userId: formData.userId,
@@ -147,49 +158,54 @@ export default function AdminRecordsPage() {
   };
 
   return (
-    <div className="p-4">
+    <div className="p-2 sm:p-4">
       {/* Filters */}
-      <div className="bg-white p-4 rounded-lg mb-4 space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="font-bold text-orange-700">篩選時間</span>
-          <input type="datetime-local" value={startTime} onChange={e => { setStartTime(e.target.value); setPage(1); }} className="px-2 py-1 border rounded" />
-          <span>~</span>
-          <input type="datetime-local" value={endTime} onChange={e => { setEndTime(e.target.value); setPage(1); }} className="px-2 py-1 border rounded" />
-          <button onClick={() => { setClockType('in'); setPage(1); }} className={`px-4 py-1 rounded ${clockType === 'in' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>上班</button>
-          <button onClick={() => { setClockType('out'); setPage(1); }} className={`px-4 py-1 rounded ${clockType === 'out' ? 'bg-gray-600 text-white' : 'bg-gray-200'}`}>下班</button>
+      <div className="bg-white p-3 sm:p-4 rounded-lg mb-3 space-y-2 sm:space-y-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <span className="font-bold text-orange-700 text-sm">篩選時間</span>
+          <input type="datetime-local" value={startTime} onChange={e => { setStartTime(e.target.value); setPage(1); }} className="px-2 py-1 border rounded text-sm flex-1 min-w-[140px]" />
+          <span className="text-sm">~</span>
+          <input type="datetime-local" value={endTime} onChange={e => { setEndTime(e.target.value); setPage(1); }} className="px-2 py-1 border rounded text-sm flex-1 min-w-[140px]" />
+          <div className="flex gap-1">
+            <button onClick={() => { setClockType('in'); setPage(1); }} className={`px-3 py-1 rounded text-sm ${clockType === 'in' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>上班</button>
+            <button onClick={() => { setClockType('out'); setPage(1); }} className={`px-3 py-1 rounded text-sm ${clockType === 'out' ? 'bg-gray-600 text-white' : 'bg-gray-200'}`}>下班</button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="font-bold text-orange-700">篩選結算型態</span>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <span className="font-bold text-orange-700 text-sm">結算</span>
           {['', '週', '月', '半月'].map(t => (
             <button key={t || 'all'} onClick={() => { setSettlementType(t); setPage(1); }}
-              className={`px-4 py-1 rounded ${settlementType === t ? 'bg-blue-800 text-white' : 'bg-gray-200'}`}>
+              className={`px-3 py-1 rounded text-sm ${settlementType === t ? 'bg-blue-800 text-white' : 'bg-gray-200'}`}>
               {t || '全部'}
             </button>
           ))}
+        </div>
 
-          <span className="font-bold text-orange-700 ml-4">個案代碼</span>
-          <input value={caseCode} onChange={e => { setCaseCode(e.target.value); setPage(1); }} className="px-2 py-1 border rounded w-28" />
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <span className="font-bold text-orange-700 text-sm">代碼</span>
+          <input value={caseCode} onChange={e => { setCaseCode(e.target.value); setPage(1); }} className="px-2 py-1 border rounded w-20 sm:w-28 text-sm" />
 
-          <span className="font-bold text-orange-700">個案名稱</span>
-          <input value={caseName} onChange={e => { setCaseName(e.target.value); setPage(1); }} className="px-2 py-1 border rounded w-32" />
+          <span className="font-bold text-orange-700 text-sm">個案</span>
+          <input value={caseName} onChange={e => { setCaseName(e.target.value); setPage(1); }} className="px-2 py-1 border rounded w-20 sm:w-32 text-sm" />
 
-          <span className="font-bold text-orange-700">特護名稱</span>
-          <input value={userName} onChange={e => { setUserName(e.target.value); setPage(1); }} className="px-2 py-1 border rounded w-32" />
+          <span className="font-bold text-orange-700 text-sm">特護</span>
+          <input value={userName} onChange={e => { setUserName(e.target.value); setPage(1); }} className="px-2 py-1 border rounded w-20 sm:w-32 text-sm" />
         </div>
       </div>
 
       {/* Action buttons */}
       <div className="flex justify-end gap-2 mb-2">
-        <button onClick={handleExport} className="px-4 py-2 bg-green-700 text-white rounded font-bold hover:bg-green-800">
-          Excel匯出
+        <button onClick={handleExport} className="px-3 sm:px-4 py-2 bg-green-700 text-white rounded font-bold hover:bg-green-800 text-sm">
+          匯出
         </button>
-        <button onClick={openAdd} className="px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700">
+        <button onClick={openAdd} className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700 text-sm">
           新增
         </button>
       </div>
 
       {/* Table */}
+      <div className="table-wrap">
       <table>
         <thead>
           <tr>
@@ -216,16 +232,22 @@ export default function AdminRecordsPage() {
               <td className="font-bold text-green-700">{r.calculatedSalary ?? r.salary}</td>
               <td>{r.multiplier && r.multiplier > 1 ? <span className="text-red-600 font-bold">{r.multiplier}x</span> : ''}</td>
               <td>
-                <button onClick={() => openEdit(r)} className="px-3 py-1 bg-blue-600 text-white rounded mr-1 text-sm hover:bg-blue-700">編輯</button>
-                <button onClick={() => handleDelete(r.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600">刪除</button>
+                <div className="flex gap-1 justify-center">
+                  <button onClick={() => openEdit(r)} className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded text-xs sm:text-sm hover:bg-blue-700">編輯</button>
+                  <button onClick={() => handleDelete(r.id)} className="px-2 sm:px-3 py-1 bg-red-500 text-white rounded text-xs sm:text-sm hover:bg-red-600">刪除</button>
+                </div>
               </td>
             </tr>
           ))}
-          {records.length === 0 && (
+          {loading && (
+            <tr><td colSpan={9} className="py-8 text-gray-400">載入中...</td></tr>
+          )}
+          {!loading && records.length === 0 && (
             <tr><td colSpan={9} className="py-8 text-gray-400">尚無紀錄</td></tr>
           )}
         </tbody>
       </table>
+      </div>
 
       {/* Pagination */}
       <div className="flex items-center justify-center gap-2 mt-4">

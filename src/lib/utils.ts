@@ -90,6 +90,22 @@ export function formatDateTime(dateStr: string | null): string {
   return `${year}年${month}月${day}日 ${hour}點${minute}分`;
 }
 
+/** 拆分日班/夜班時數（日班 08:00~20:00, 夜班 20:00~08:00），不滿1小時捨去 */
+export function getDayNightHours(clockIn: string | null, clockOut: string | null): { dayHours: number; nightHours: number } {
+  if (!clockIn || !clockOut) return { dayHours: 0, nightHours: 0 };
+  const start = new Date(clockIn);
+  const end = new Date(clockOut);
+  if (end.getTime() <= start.getTime()) return { dayHours: 0, nightHours: 0 };
+  let dayMin = 0, nightMin = 0;
+  const cur = new Date(start);
+  while (cur.getTime() < end.getTime()) {
+    const h = cur.getHours();
+    if (h >= 8 && h < 20) dayMin++; else nightMin++;
+    cur.setMinutes(cur.getMinutes() + 1);
+  }
+  return { dayHours: Math.floor(dayMin / 60), nightHours: Math.floor(nightMin / 60) };
+}
+
 export function formatCoords(lat: number | null, lng: number | null): string {
   if (lat === null || lng === null) return '';
   return `${lat}, ${lng}`;

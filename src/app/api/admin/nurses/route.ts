@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getUsers, createUser, updateUser, deleteUser } from '@/lib/db';
+import { getUsers, createUser, updateUser, deleteUser, getClockRecords } from '@/lib/db';
 import { paginate } from '@/lib/utils';
 
 export async function GET(request: Request) {
@@ -68,6 +68,12 @@ export async function DELETE(request: Request) {
   const id = searchParams.get('id');
   if (!id) {
     return NextResponse.json({ error: '缺少 ID' }, { status: 400 });
+  }
+
+  // 檢查是否有關聯的打卡紀錄
+  const records = await getClockRecords(session.orgId, { userId: id });
+  if (records.length > 0) {
+    return NextResponse.json({ error: `此特護有 ${records.length} 筆打卡紀錄，無法刪除` }, { status: 400 });
   }
 
   await deleteUser(id);

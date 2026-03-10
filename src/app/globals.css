@@ -11,28 +11,49 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* 表格外層容器：手機版水平捲動 */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 table {
   border-collapse: collapse;
   width: 100%;
+  min-width: 600px;
 }
 
 th {
   background-color: #e8e8e8;
   color: #8b0000;
   font-weight: bold;
-  padding: 10px 12px;
+  padding: 6px 8px;
   text-align: center;
   border: 1px solid #ddd;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 td {
-  padding: 8px 12px;
+  padding: 6px 8px;
   text-align: center;
   border: 1px solid #eee;
+  font-size: 13px;
 }
 
 tr:hover {
   background-color: #f0f0f0;
+}
+
+@media (min-width: 640px) {
+  th {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  td {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
 }
 
 input, select {
@@ -45,3 +66,13 @@ input, select {
 input:focus, select:focus {
   border-color: #4a90d9;
 }
+
+/* 隱藏水平捲動條（導覽列用） */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+

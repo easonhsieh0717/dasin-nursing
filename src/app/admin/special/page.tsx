@@ -83,11 +83,12 @@ export default function SpecialPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-end mb-4">
-        <button onClick={openAdd} className="px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700">新增</button>
+    <div className="p-3 sm:p-6">
+      <div className="flex justify-end mb-3">
+        <button onClick={openAdd} className="px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700 text-sm">新增</button>
       </div>
 
+      <div className="table-wrap">
       <table>
         <thead>
           <tr>
@@ -108,8 +109,10 @@ export default function SpecialPage() {
               <td>{formatDT(sc.startTime)}</td>
               <td>{formatDT(sc.endTime)}</td>
               <td>
-                <button onClick={() => openEdit(sc)} className="px-3 py-1 bg-blue-600 text-white rounded mr-1 text-sm hover:bg-blue-700">編輯</button>
-                <button onClick={() => handleDelete(sc.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600">刪除</button>
+                <div className="flex gap-1 justify-center">
+                  <button onClick={() => openEdit(sc)} className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded text-xs sm:text-sm hover:bg-blue-700">編輯</button>
+                  <button onClick={() => handleDelete(sc.id)} className="px-2 sm:px-3 py-1 bg-red-500 text-white rounded text-xs sm:text-sm hover:bg-red-600">刪除</button>
+                </div>
               </td>
             </tr>
           ))}
@@ -118,6 +121,7 @@ export default function SpecialPage() {
           )}
         </tbody>
       </table>
+      </div>
 
       {/* Modal */}
       {showModal && (

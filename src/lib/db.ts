@@ -192,6 +192,7 @@ export async function getClockRecords(orgId: string, filters?: {
   if (isSupabase) {
     let q = supabase.from('clock_records').select('*, users!inner(name), cases!inner(name, code, settlement_type)').eq('org_id', orgId);
     if (filters?.userId) q = q.eq('user_id', filters.userId);
+    if (filters?.caseId) q = q.eq('case_id', filters.caseId);
     if (filters?.userName) q = q.ilike('users.name', `%${filters.userName}%`);
     if (filters?.caseName) q = q.ilike('cases.name', `%${filters.caseName}%`);
     if (filters?.caseCode) q = q.ilike('cases.code', `%${filters.caseCode}%`);
@@ -213,6 +214,7 @@ export async function getClockRecords(orgId: string, filters?: {
   let records = db.clockRecords.filter(r => r.orgId === orgId);
   if (filters) {
     if (filters.userId) records = records.filter(r => r.userId === filters.userId);
+    if (filters.caseId) records = records.filter(r => r.caseId === filters.caseId);
     if (filters.userName) { const ids = new Set(db.users.filter(u => u.name.includes(filters.userName!)).map(u => u.id)); records = records.filter(r => ids.has(r.userId)); }
     if (filters.caseName) { const ids = new Set(db.cases.filter(c => c.name.includes(filters.caseName!)).map(c => c.id)); records = records.filter(r => ids.has(r.caseId)); }
     if (filters.caseCode) { const ids = new Set(db.cases.filter(c => c.code.includes(filters.caseCode!)).map(c => c.id)); records = records.filter(r => ids.has(r.caseId)); }

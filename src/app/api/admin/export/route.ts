@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getClockRecords, enrichRecords, getRateSettings, getSpecialConditions } from '@/lib/db';
-import { formatDateTime, formatCoords, calculateHours, calculateSalary, getSpecialMultiplier } from '@/lib/utils';
+import { formatDateTime, formatCoords, calculateHours, calculateSalary, getSpecialMultiplier, getDayNightHours } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 
 /** 格式化時間為 HHmm (e.g. "0900") */
@@ -55,13 +55,14 @@ export async function GET(request: Request) {
     return ta - tb;
   });
 
-  // 計算每筆薪資
+  // 計算每筆薪資 + 日夜班時數
   const computed = sorted.map(r => {
     const multiplier = getSpecialMultiplier(r.clockInTime, r.clockOutTime, specialConditions);
     const salary = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
+    const { dayHours, nightHours } = getDayNightHours(r.clockInTime, r.clockOutTime);
     const timeRange = `${fmtTime(r.clockInTime)}-${fmtTime(r.clockOutTime)}`;
     const date = fmtDate(r.clockInTime);
-    return { ...r, salary, multiplier, timeRange, date };
+    return { ...r, salary, multiplier, timeRange, date, dayHours, nightHours };
   });
 
   const wb = XLSX.utils.book_new();
@@ -75,45 +76,54 @@ export async function GET(request: Request) {
     '上班時間': formatDateTime(r.clockInTime),
     '下班時間': formatDateTime(r.clockOutTime),
     '工時(小時)': calculateHours(r.clockInTime, r.clockOutTime),
+    '日班時數': r.dayHours,
+    '夜班時數': r.nightHours,
     '薪資': r.salary,
     '倍率': r.multiplier > 1 ? `${r.multiplier}x` : '',
   }));
   const wsDetail = XLSX.utils.json_to_sheet(detailRows);
   wsDetail['!cols'] = [
     { wch: 15 }, { wch: 10 }, { wch: 30 }, { wch: 30 },
-    { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 10 }, { wch: 8 },
+    { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 8 },
   ];
   XLSX.utils.book_append_sheet(wb, wsDetail, '打卡紀錄');
 
   // ========== Sheet 2: 簽到表 ==========
   const signRows = computed.map(r => ({
+    '個案': r.caseName,
     '日期': r.date,
     '時間': r.timeRange,
     '簽到人': r.userName,
   }));
   const wsSign = XLSX.utils.json_to_sheet(signRows);
-  wsSign['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 12 }];
+  wsSign['!cols'] = [{ wch: 15 }, { wch: 10 }, { wch: 14 }, { wch: 12 }];
   XLSX.utils.book_append_sheet(wb, wsSign, '簽到表');
 
   // ========== Sheet 3: 請款明細 + 薪資彙總 ==========
   const invoiceRows: Record<string, string | number>[] = computed.map(r => ({
+    '個案': r.caseName,
     '日期': r.date,
     '時間': r.timeRange,
     '簽到人': r.userName,
+    '日班h': r.dayHours,
+    '夜班h': r.nightHours,
     '金額': r.salary,
   }));
 
   // 總和行
   const totalSalary = computed.reduce((sum, r) => sum + r.salary, 0);
   invoiceRows.push({
-    '日期': '總和',
+    '個案': '總和',
+    '日期': '',
     '時間': '',
     '簽到人': '',
+    '日班h': '',
+    '夜班h': '',
     '金額': totalSalary,
   });
 
   const wsInvoice = XLSX.utils.json_to_sheet(invoiceRows);
-  wsInvoice['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
+  wsInvoice['!cols'] = [{ wch: 15 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 10 }];
 
   // 空兩行後加薪資彙總
   const summaryStartRow = invoiceRows.length + 3;

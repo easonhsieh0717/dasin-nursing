@@ -37,13 +37,16 @@ export default function RecordsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   const fetchRecords = useCallback(async () => {
+    setLoading(true);
     const res = await fetch(`/api/records?page=${page}&pageSize=10`);
     const data = await res.json();
     setRecords(data.data || []);
     setTotalPages(data.totalPages || 1);
     setTotal(data.total || 0);
+    setLoading(false);
   }, [page]);
 
   useEffect(() => {
@@ -79,6 +82,7 @@ export default function RecordsPage() {
       </nav>
 
       <div className="p-6">
+        <div className="table-wrap">
         <table>
           <thead>
             <tr>
@@ -101,11 +105,15 @@ export default function RecordsPage() {
                 <td>{formatDateTime(r.clockOutTime)}</td>
               </tr>
             ))}
-            {records.length === 0 && (
+            {loading && (
+              <tr><td colSpan={6} className="py-8 text-gray-400">載入中...</td></tr>
+            )}
+            {!loading && records.length === 0 && (
               <tr><td colSpan={6} className="py-8 text-gray-400">尚無紀錄</td></tr>
             )}
           </tbody>
         </table>
+        </div>
 
         {/* Pagination */}
         <div className="flex items-center justify-center gap-2 mt-6">

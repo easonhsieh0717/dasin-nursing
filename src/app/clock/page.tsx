@@ -10,6 +10,7 @@ export default function ClockPage() {
   const [loading, setLoading] = useState(false);
   const [cases, setCases] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedCase, setSelectedCase] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     fetch('/api/admin/cases?all=true')
@@ -21,6 +22,12 @@ export default function ClockPage() {
         }
       })
       .catch(() => {});
+  }, []);
+
+  // 即時時鐘
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const getLocation = (): Promise<{ lat: number; lng: number } | null> => {
@@ -107,15 +114,27 @@ export default function ClockPage() {
       </nav>
 
       {/* Main content */}
-      <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100vh - 52px)' }}>
+      <div className="flex flex-col items-center justify-center px-6" style={{ minHeight: 'calc(100vh - 52px)' }}>
+        {/* 即時時鐘 */}
+        <div className="mb-8 text-center">
+          <div className="text-5xl sm:text-6xl font-mono font-bold text-gray-800 tracking-wider">
+            {String(currentTime.getHours()).padStart(2, '0')}:{String(currentTime.getMinutes()).padStart(2, '0')}
+            <span className="text-3xl sm:text-4xl text-gray-400">:{String(currentTime.getSeconds()).padStart(2, '0')}</span>
+          </div>
+          <div className="text-sm text-gray-500 mt-2">
+            {currentTime.getFullYear()}/{String(currentTime.getMonth()+1).padStart(2,'0')}/{String(currentTime.getDate()).padStart(2,'0')}
+            {' '}
+            {['日','一','二','三','四','五','六'][currentTime.getDay()]}
+          </div>
+        </div>
+
         {/* Case selector */}
         {cases.length > 1 && (
-          <div className="mb-8">
-            <label className="text-gray-600 mr-2">選擇個案：</label>
+          <div className="mb-6">
             <select
               value={selectedCase}
               onChange={(e) => setSelectedCase(e.target.value)}
-              className="px-4 py-2 border rounded-lg text-lg"
+              className="px-4 py-2 border rounded-lg text-base bg-white"
             >
               {cases.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -124,13 +143,13 @@ export default function ClockPage() {
           </div>
         )}
 
-        {/* Clock buttons */}
-        <div className="flex flex-col items-center gap-12">
+        {/* Clock buttons — 圓形設計 */}
+        <div className="flex items-center justify-center gap-8 sm:gap-16">
           <button
             onClick={() => handleClock('in')}
             disabled={loading}
-            className="w-60 h-44 rounded-2xl text-white text-5xl font-bold shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
-            style={{ backgroundColor: '#4cd964' }}
+            className="w-36 h-36 sm:w-40 sm:h-40 rounded-full text-white text-3xl sm:text-4xl font-bold shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #34d058, #28a745)' }}
           >
             上班
           </button>
@@ -138,8 +157,8 @@ export default function ClockPage() {
           <button
             onClick={() => handleClock('out')}
             disabled={loading}
-            className="w-60 h-44 rounded-2xl text-white text-5xl font-bold shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
-            style={{ backgroundColor: '#ef4444' }}
+            className="w-36 h-36 sm:w-40 sm:h-40 rounded-full text-white text-3xl sm:text-4xl font-bold shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #ff6b6b, #dc3545)' }}
           >
             下班
           </button>
@@ -147,15 +166,15 @@ export default function ClockPage() {
 
         {/* Status message */}
         {message && (
-          <div className={`mt-8 px-6 py-3 rounded-lg text-lg font-medium ${
-            messageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          <div className={`mt-8 px-6 py-3 rounded-xl text-base font-medium ${
+            messageType === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
           }`}>
             {message}
           </div>
         )}
 
         {loading && (
-          <div className="mt-4 text-gray-500">正在取得位置並打卡中...</div>
+          <div className="mt-6 text-gray-500 text-sm">正在取得位置並打卡中...</div>
         )}
       </div>
     </div>

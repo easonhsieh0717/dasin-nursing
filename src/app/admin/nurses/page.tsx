@@ -19,8 +19,10 @@ export default function NursesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Nurse | null>(null);
   const [form, setForm] = useState({ name: '', account: '', password: '', hourlyRate: '200' });
+  const [loading, setLoading] = useState(true);
 
   const fetchNurses = useCallback(async () => {
+    setLoading(true);
     const params = new URLSearchParams({ page: String(page), pageSize: '10' });
     if (search) params.set('search', search);
     const res = await fetch(`/api/admin/nurses?${params}`);
@@ -28,13 +30,19 @@ export default function NursesPage() {
     setNurses(data.data || []);
     setTotalPages(data.totalPages || 1);
     setTotal(data.total || 0);
+    setLoading(false);
   }, [page, search]);
 
   useEffect(() => { fetchNurses(); }, [fetchNurses]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('確定要刪除此特護？')) return;
-    await fetch(`/api/admin/nurses?id=${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/admin/nurses?id=${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || '刪除失敗');
+      return;
+    }
     fetchNurses();
   };
 
@@ -65,22 +73,22 @@ export default function NursesPage() {
   };
 
   return (
-    <div className="p-6">
-      {/* Search */}
-      <div className="mb-4">
-        <label className="font-bold text-gray-700 mr-2">特護名稱</label>
-        <input
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }}
-          className="px-3 py-1 border rounded w-60"
-          placeholder="搜尋特護名稱..."
-        />
+    <div className="p-3 sm:p-6">
+      {/* Search + Add */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+        <div className="flex items-center gap-2">
+          <label className="font-bold text-gray-700 text-sm sm:text-base whitespace-nowrap">特護名稱</label>
+          <input
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
+            className="px-3 py-1 border rounded flex-1 sm:w-60 text-sm"
+            placeholder="搜尋..."
+          />
+        </div>
+        <button onClick={openAdd} className="px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700 text-sm self-end">新增</button>
       </div>
 
-      <div className="flex justify-end mb-2">
-        <button onClick={openAdd} className="px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700">新增</button>
-      </div>
-
+      <div className="table-wrap">
       <table>
         <thead>
           <tr>
@@ -99,16 +107,22 @@ export default function NursesPage() {
               <td>{n.password}</td>
               <td>{n.hourlyRate}</td>
               <td>
-                <button onClick={() => openEdit(n)} className="px-3 py-1 bg-blue-600 text-white rounded mr-1 text-sm hover:bg-blue-700">編輯</button>
-                <button onClick={() => handleDelete(n.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600">刪除</button>
+                <div className="flex gap-1 justify-center">
+                  <button onClick={() => openEdit(n)} className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded text-xs sm:text-sm hover:bg-blue-700">編輯</button>
+                  <button onClick={() => handleDelete(n.id)} className="px-2 sm:px-3 py-1 bg-red-500 text-white rounded text-xs sm:text-sm hover:bg-red-600">刪除</button>
+                </div>
               </td>
             </tr>
           ))}
-          {nurses.length === 0 && (
+          {loading && (
+            <tr><td colSpan={5} className="py-8 text-gray-400">載入中...</td></tr>
+          )}
+          {!loading && nurses.length === 0 && (
             <tr><td colSpan={5} className="py-8 text-gray-400">尚無資料</td></tr>
           )}
         </tbody>
       </table>
+      </div>
 
       {/* Pagination */}
       <div className="flex items-center justify-center gap-2 mt-4">
