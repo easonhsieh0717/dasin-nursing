@@ -52,16 +52,15 @@ export default function LoginPage() {
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              代碼
+              代碼 <span className="text-gray-400 font-normal">（管理員可不填）</span>
             </label>
             <input
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="請輸入代碼"
+              placeholder="特護請輸入代碼"
               className="w-full px-4 py-2 border rounded-lg"
               autoComplete="organization"
-              required
             />
           </div>
 

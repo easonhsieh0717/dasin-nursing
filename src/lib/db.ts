@@ -94,6 +94,24 @@ export async function getOrgByCode(code: string): Promise<Organization | undefin
 }
 
 // ===== Users =====
+// 管理員不需要代碼即可登入
+export async function authenticateAdmin(account: string, password: string): Promise<{ user: User; org: Organization } | null> {
+  if (isSupabase) {
+    const { data } = await supabase.from('users').select('*').eq('account', account).eq('password', password).eq('role', 'admin').single();
+    if (!data) return null;
+    const user = toUser(data);
+    const { data: orgData } = await supabase.from('organizations').select('*').eq('id', user.orgId).single();
+    if (!orgData) return null;
+    return { user, org: { id: orgData.id, code: orgData.code, name: orgData.name } };
+  }
+  const db = readDB();
+  const user = db.users.find(u => u.account === account && u.password === password && u.role === 'admin');
+  if (!user) return null;
+  const org = db.organizations.find(o => o.id === user.orgId);
+  if (!org) return null;
+  return { user, org };
+}
+
 export async function authenticateUser(orgCode: string, account: string, password: string): Promise<User | null> {
   if (isSupabase) {
     const { data: org } = await supabase.from('organizations').select('id').eq('code', orgCode).single();
