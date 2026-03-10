@@ -73,8 +73,16 @@ export default function PayrollPage() {
       .amount-number { font-size: 28px; font-weight: bold; color: #d32f2f; font-family: 'Courier New', monospace; }
       .amount-chinese { font-size: 16px; margin-top: 5px; color: #333; }
       .date-row { text-align: right; font-size: 13px; color: #666; margin-top: 15px; }
-      @media print { .slip { border: none; } }
-    </style></head><body>`;
+      .toolbar { padding: 10px 20px; text-align: center; background: #f5f5f5; border-bottom: 1px solid #ddd; }
+      .toolbar button { padding: 8px 24px; margin: 0 8px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: bold; }
+      .btn-print { background: #1565c0; color: white; }
+      .btn-close { background: #757575; color: white; }
+      @media print { .slip { border: none; } .toolbar { display: none; } }
+    </style></head><body>
+    <div class="toolbar">
+      <button class="btn-print" onclick="window.print()">列印</button>
+      <button class="btn-close" onclick="window.close()">關閉視窗</button>
+    </div>`;
 
     for (const item of postItems) {
       const amt = Math.floor(item.totalSalary);
@@ -132,7 +140,6 @@ export default function PayrollPage() {
     if (printWindow) {
       printWindow.document.write(html);
       printWindow.document.close();
-      setTimeout(() => printWindow.print(), 500);
     }
   };
 
@@ -149,14 +156,23 @@ export default function PayrollPage() {
 
     let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>銀行匯款清單</title>
     <style>
-      body { font-family: 'Noto Sans TC', sans-serif; padding: 20mm; }
+      body { font-family: 'Noto Sans TC', sans-serif; padding: 20mm; padding-top: 10mm; }
       h1 { text-align: center; color: #1565c0; }
       table { width: 100%; border-collapse: collapse; margin-top: 20px; }
       th, td { border: 1px solid #ddd; padding: 10px 12px; text-align: left; }
       th { background: #e3f2fd; color: #1565c0; }
       .total-row { background: #f5f5f5; font-weight: bold; }
       .date { text-align: right; color: #666; margin-top: 20px; }
+      .toolbar { position: fixed; top: 0; left: 0; right: 0; padding: 10px 20px; text-align: center; background: #f5f5f5; border-bottom: 1px solid #ddd; z-index: 100; }
+      .toolbar button { padding: 8px 24px; margin: 0 8px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: bold; }
+      .btn-print { background: #1565c0; color: white; }
+      .btn-close { background: #757575; color: white; }
+      @media print { .toolbar { display: none; } body { padding-top: 20mm; } }
     </style></head><body>
+    <div class="toolbar">
+      <button class="btn-print" onclick="window.print()">列印</button>
+      <button class="btn-close" onclick="window.close()">關閉視窗</button>
+    </div>
     <h1>銀行匯款清單</h1>
     <table>
       <thead><tr><th>#</th><th>特護姓名</th><th>銀行</th><th>帳號</th><th>戶名</th><th>金額</th></tr></thead>
@@ -184,7 +200,6 @@ export default function PayrollPage() {
     if (printWindow) {
       printWindow.document.write(html);
       printWindow.document.close();
-      setTimeout(() => printWindow.print(), 500);
     }
   };
 
@@ -230,15 +245,24 @@ export default function PayrollPage() {
             </div>
           </div>
 
+          {/* Hint: missing bank info */}
+          {data.summary.some(s => !s.bank && !s.accountNo) && (
+            <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 mb-4 text-sm text-yellow-800">
+              ⚠ 部分特護尚未設定銀行資訊，請至「<a href="/admin/nurses" className="text-blue-600 underline font-bold">特護管理</a>」頁面填寫銀行/郵局帳號，系統才能正確分類郵局與銀行。
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2 mb-4">
             <button onClick={printPostalSlips}
-              className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 text-sm">
-              列印郵局存款單
+              disabled={data.postOfficeCount === 0}
+              className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 text-sm disabled:opacity-40 disabled:cursor-not-allowed">
+              列印郵局存款單 {data.postOfficeCount > 0 ? `(${data.postOfficeCount} 筆)` : ''}
             </button>
             <button onClick={printBankList}
-              className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 text-sm">
-              列印銀行匯款清單
+              disabled={data.bankCount === 0}
+              className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 text-sm disabled:opacity-40 disabled:cursor-not-allowed">
+              列印銀行匯款清單 {data.bankCount > 0 ? `(${data.bankCount} 筆)` : ''}
             </button>
           </div>
 
