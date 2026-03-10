@@ -173,22 +173,20 @@ export default function ClockPage() {
         </button>
       </nav>
 
-      {/* 個案名稱顯示（使用 inline style 確保手機瀏覽器正確顯示） */}
+      {/* 個案名稱顯示 — 使用強烈配色確保醒目 */}
       <div style={{
-        borderBottom: '1px solid',
-        borderColor: isClockedIn ? '#fdba74' : '#bfdbfe',
-        backgroundColor: isClockedIn ? '#fff7ed' : '#eff6ff',
-        padding: '8px 16px',
+        backgroundColor: isClockedIn ? '#f97316' : '#2563eb',
+        padding: '12px 16px',
         textAlign: 'center',
       }}>
-        <div style={{ fontWeight: 'bold', fontSize: '14px', color: isClockedIn ? '#9a3412' : '#1e40af' }}>
-          {isClockedIn ? '目前正在值班中' : '目前個案'}
+        <div style={{ fontWeight: 'bold', fontSize: '16px', color: 'white' }}>
+          {isClockedIn ? '🟠 目前正在值班中' : '📋 目前個案'}
         </div>
-        <div style={{ fontSize: '12px', marginTop: '4px', color: isClockedIn ? '#ea580c' : '#2563eb' }}>
+        <div style={{ fontSize: '14px', marginTop: '4px', color: 'white' }}>
           {clockStatus
             ? (isClockedIn
-              ? <>個案：{clockStatus.openRecord?.caseName || ''} · 上班時間：{clockInTimeStr} · 已經過 {elapsedStr}</>
-              : <>個案代碼：{clockStatus.defaultCaseCode || ''} · 個案名稱：{clockStatus.defaultCaseName || ''}</>
+              ? <>個案：{clockStatus.openRecord?.caseName || ''} · 上班：{clockInTimeStr} · 已 {elapsedStr}</>
+              : <>代碼：{clockStatus.defaultCaseCode || '—'} · 名稱：{clockStatus.defaultCaseName || '—'}</>
             )
             : '載入中...'
           }
@@ -210,15 +208,16 @@ export default function ClockPage() {
           </div>
         </div>
 
-        {/* Clock buttons — 圓形設計（使用 inline style 確保手機瀏覽器正確顯示） */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2rem' }}>
+        {/* Clock buttons — 圓形設計（inline style 確保所有手機瀏覽器相容） */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '1.5rem' }}>
           <button
             onClick={() => handleClock('in')}
             disabled={loading || isClockedIn}
             style={{
-              width: '144px', height: '144px', borderRadius: '50%', flexShrink: 0,
+              width: '130px', height: '130px', borderRadius: '50%',
+              flexShrink: 0, flexGrow: 0,
               background: isClockedIn ? '#9ca3af' : 'linear-gradient(135deg, #34d058, #28a745)',
-              color: 'white', fontSize: '1.875rem', fontWeight: 'bold',
+              color: 'white', fontSize: '1.75rem', fontWeight: 'bold',
               border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
               opacity: (loading || isClockedIn) ? 0.3 : 1,
               cursor: (loading || isClockedIn) ? 'default' : 'pointer',
@@ -231,9 +230,10 @@ export default function ClockPage() {
             onClick={() => handleClock('out')}
             disabled={loading || !isClockedIn}
             style={{
-              width: '144px', height: '144px', borderRadius: '50%', flexShrink: 0,
+              width: '130px', height: '130px', borderRadius: '50%',
+              flexShrink: 0, flexGrow: 0,
               background: !isClockedIn ? '#9ca3af' : 'linear-gradient(135deg, #ff6b6b, #dc3545)',
-              color: 'white', fontSize: '1.875rem', fontWeight: 'bold',
+              color: 'white', fontSize: '1.75rem', fontWeight: 'bold',
               border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
               opacity: (loading || !isClockedIn) ? 0.3 : 1,
               cursor: (loading || !isClockedIn) ? 'default' : 'pointer',
