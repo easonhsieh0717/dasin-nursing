@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 interface ClockStatus {
   isClockedIn: boolean;
   defaultCaseName?: string;
+  defaultCaseCode?: string;
+  defaultCaseId?: string;
   openRecord?: {
     id: string;
     clockInTime: string;
@@ -178,8 +180,10 @@ export default function ClockPage() {
             {isClockedIn ? '目前正在值班中' : '目前個案'}
           </div>
           <div className={`text-xs sm:text-sm mt-1 ${isClockedIn ? 'text-orange-600' : 'text-blue-600'}`}>
-            個案名稱：{isClockedIn ? (clockStatus.openRecord?.caseName || '') : (clockStatus.defaultCaseName || '')}
-            {isClockedIn && clockInTimeStr && ` · 上班時間：${clockInTimeStr} · 已經過 ${elapsedStr}`}
+            {isClockedIn
+              ? <>個案：{clockStatus.openRecord?.caseName || ''} · 上班時間：{clockInTimeStr} · 已經過 {elapsedStr}</>
+              : <>個案代碼：{clockStatus.defaultCaseCode || ''} · 個案名稱：{clockStatus.defaultCaseName || ''}</>
+            }
           </div>
         </div>
       )}

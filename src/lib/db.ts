@@ -9,7 +9,7 @@ const DB_PATH = isVercel
 
 // ===== Types =====
 export interface Organization { id: string; code: string; name: string; }
-export interface User { id: string; orgId: string; name: string; account: string; password: string; role: 'admin' | 'employee'; hourlyRate: number; bank?: string; accountNo?: string; accountName?: string; }
+export interface User { id: string; orgId: string; name: string; account: string; password: string; role: 'admin' | 'employee'; hourlyRate: number; bank?: string; accountNo?: string; accountName?: string; defaultCaseId?: string; }
 export interface Case { id: string; orgId: string; name: string; code: string; caseType: string; settlementType: string; }
 export interface ClockRecord { id: string; orgId: string; userId: string; caseId: string; clockInTime: string | null; clockInLat: number | null; clockInLng: number | null; clockOutTime: string | null; clockOutLat: number | null; clockOutLng: number | null; salary: number; }
 export interface SpecialCondition { id: string; orgId: string; name: string; target: string; multiplier: number; startTime: string; endTime: string; }
@@ -17,7 +17,7 @@ export interface RateSettings { id: string; orgId: string; effectiveDate: string
 
 // ===== Supabase row mappers =====
 /* eslint-disable @typescript-eslint/no-explicit-any */
-function toUser(r: any): User { return { id: r.id, orgId: r.org_id, name: r.name, account: r.account, password: r.password, role: r.role, hourlyRate: Number(r.hourly_rate), bank: r.bank || '', accountNo: r.account_no || '', accountName: r.account_name || '' }; }
+function toUser(r: any): User { return { id: r.id, orgId: r.org_id, name: r.name, account: r.account, password: r.password, role: r.role, hourlyRate: Number(r.hourly_rate), bank: r.bank || '', accountNo: r.account_no || '', accountName: r.account_name || '', defaultCaseId: r.default_case_id || undefined }; }
 function toCase(r: any): Case { return { id: r.id, orgId: r.org_id, name: r.name, code: r.code, caseType: r.case_type, settlementType: r.settlement_type }; }
 function toRecord(r: any): ClockRecord { return { id: r.id, orgId: r.org_id, userId: r.user_id, caseId: r.case_id, clockInTime: r.clock_in_time, clockInLat: r.clock_in_lat, clockInLng: r.clock_in_lng, clockOutTime: r.clock_out_time, clockOutLat: r.clock_out_lat, clockOutLng: r.clock_out_lng, salary: Number(r.salary) }; }
 function toSC(r: any): SpecialCondition { return { id: r.id, orgId: r.org_id, name: r.name, target: r.target, multiplier: Number(r.multiplier), startTime: r.start_time, endTime: r.end_time }; }
@@ -125,6 +125,15 @@ export async function authenticateUser(orgCode: string, account: string, passwor
   return db.users.find(u => u.orgId === org.id && u.account === account && u.password === password) || null;
 }
 
+export async function getUserById(id: string): Promise<User | null> {
+  if (isSupabase) {
+    const { data } = await supabase.from('users').select('*').eq('id', id).single();
+    return data ? toUser(data) : null;
+  }
+  const user = readDB().users.find(u => u.id === id);
+  return user || null;
+}
+
 export async function getUsers(orgId: string, search?: string, page?: number, pageSize?: number): Promise<{ users: User[]; total: number }> {
   if (isSupabase) {
     let q = supabase.from('users').select('*', { count: 'exact' }).eq('org_id', orgId).eq('role', 'employee');
@@ -149,7 +158,9 @@ export async function getUsers(orgId: string, search?: string, page?: number, pa
 
 export async function createUser(user: Omit<User, 'id'>): Promise<User> {
   if (isSupabase) {
-    const { data } = await supabase.from('users').insert({ org_id: user.orgId, name: user.name, account: user.account, password: user.password, role: user.role, hourly_rate: user.hourlyRate, bank: user.bank || '', account_no: user.accountNo || '', account_name: user.accountName || '' }).select().single();
+    const insert: Record<string, unknown> = { org_id: user.orgId, name: user.name, account: user.account, password: user.password, role: user.role, hourly_rate: user.hourlyRate, bank: user.bank || '', account_no: user.accountNo || '', account_name: user.accountName || '' };
+    if (user.defaultCaseId) insert.default_case_id = user.defaultCaseId;
+    const { data } = await supabase.from('users').insert(insert).select().single();
     return toUser(data);
   }
   const db = readDB(); const n: User = { ...user, id: generateId() }; db.users.push(n); writeDB(db); return n;
@@ -165,6 +176,7 @@ export async function updateUser(id: string, data: Partial<User>): Promise<User 
     if (data.bank !== undefined) update.bank = data.bank;
     if (data.accountNo !== undefined) update.account_no = data.accountNo;
     if (data.accountName !== undefined) update.account_name = data.accountName;
+    if (data.defaultCaseId !== undefined) update.default_case_id = data.defaultCaseId || null;
     const { data: row } = await supabase.from('users').update(update).eq('id', id).select().single();
     return row ? toUser(row) : null;
   }

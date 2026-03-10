@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { createClockRecord, findOpenClockRecord, findAnyOpenClockRecord, updateClockRecord, getCases, getRateSettings, getSpecialConditions } from '@/lib/db';
+import { createClockRecord, findOpenClockRecord, findAnyOpenClockRecord, updateClockRecord, getCases, getRateSettings, getSpecialConditions, getUserById } from '@/lib/db';
 import { calculateSalary, getSpecialMultiplier } from '@/lib/utils';
 
 export async function POST(request: Request) {
@@ -24,8 +24,10 @@ export async function POST(request: Request) {
         );
       }
 
+      // 使用使用者指定的個案
+      const user = await getUserById(session.userId);
       const cases = await getCases(session.orgId);
-      const targetCaseId = caseId || cases[0]?.id;
+      const targetCaseId = caseId || user?.defaultCaseId || cases[0]?.id;
       if (!targetCaseId) {
         return NextResponse.json({ error: '沒有可用的個案' }, { status: 400 });
       }

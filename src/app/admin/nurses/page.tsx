@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
 
+interface CaseOption { id: string; name: string; code: string; }
+
 interface Nurse {
   id: string;
   name: string;
@@ -12,6 +14,7 @@ interface Nurse {
   bank: string;
   accountNo: string;
   accountName: string;
+  defaultCaseId?: string;
 }
 
 interface ImportResult {
@@ -27,13 +30,15 @@ interface ImportResult {
 
 export default function NursesPage() {
   const [nurses, setNurses] = useState<Nurse[]>([]);
+  const [cases, setCases] = useState<CaseOption[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
+  const [committedSearch, setCommittedSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Nurse | null>(null);
-  const [form, setForm] = useState({ name: '', account: '', password: '', hourlyRate: '200', bank: '', accountNo: '', accountName: '' });
+  const [form, setForm] = useState({ name: '', account: '', password: '', hourlyRate: '200', bank: '', accountNo: '', accountName: '', defaultCaseId: '' });
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -42,16 +47,26 @@ export default function NursesPage() {
   const fetchNurses = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), pageSize: '10' });
-    if (search) params.set('search', search);
+    if (committedSearch) params.set('search', committedSearch);
     const res = await fetch(`/api/admin/nurses?${params}`);
     const data = await res.json();
     setNurses(data.data || []);
     setTotalPages(data.totalPages || 1);
     setTotal(data.total || 0);
     setLoading(false);
-  }, [page, search]);
+  }, [page, committedSearch]);
 
   useEffect(() => { fetchNurses(); }, [fetchNurses]);
+
+  // 載入個案列表
+  useEffect(() => {
+    fetch('/api/admin/cases?all=true').then(r => r.json()).then(d => setCases(d.data || []));
+  }, []);
+
+  const handleSearch = () => {
+    setCommittedSearch(search);
+    setPage(1);
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm('確定要刪除此特護？')) return;
@@ -66,7 +81,7 @@ export default function NursesPage() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ name: '', account: '', password: '', hourlyRate: '200', bank: '', accountNo: '', accountName: '' });
+    setForm({ name: '', account: '', password: '', hourlyRate: '200', bank: '', accountNo: '', accountName: '', defaultCaseId: '' });
     setShowModal(true);
   };
 
@@ -75,6 +90,7 @@ export default function NursesPage() {
     setForm({
       name: n.name, account: n.account, password: n.password, hourlyRate: n.hourlyRate.toString(),
       bank: n.bank || '', accountNo: n.accountNo || '', accountName: n.accountName || '',
+      defaultCaseId: n.defaultCaseId || '',
     });
     setShowModal(true);
   };
@@ -84,6 +100,7 @@ export default function NursesPage() {
       ...(editing ? { id: editing.id } : {}),
       name: form.name, account: form.account, password: form.password, hourlyRate: parseFloat(form.hourlyRate),
       bank: form.bank, accountNo: form.accountNo, accountName: form.accountName,
+      defaultCaseId: form.defaultCaseId || null,
     };
 
     const res = await fetch('/api/admin/nurses', {
@@ -194,10 +211,14 @@ export default function NursesPage() {
           <label className="font-bold text-gray-700 text-sm sm:text-base whitespace-nowrap">特護名稱</label>
           <input
             value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
             className="px-3 py-1 border rounded flex-1 sm:w-60 text-sm"
             placeholder="搜尋..."
           />
+          <button onClick={handleSearch} className="px-4 py-1.5 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 text-sm">
+            搜尋
+          </button>
         </div>
         <div className="flex gap-2 self-end">
           <button onClick={openAdd} className="px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700 text-sm">新增</button>
@@ -235,6 +256,7 @@ export default function NursesPage() {
             <th>帳號</th>
             <th>密碼</th>
             <th>時薪</th>
+            <th>指派個案</th>
             <th>銀行</th>
             <th>銀行帳號</th>
             <th>操作</th>
@@ -247,6 +269,7 @@ export default function NursesPage() {
               <td>{n.account}</td>
               <td>{n.password}</td>
               <td>{n.hourlyRate}</td>
+              <td className="text-xs">{cases.find(c => c.id === n.defaultCaseId)?.name || <span className="text-gray-400">未指派</span>}</td>
               <td className="text-xs">{n.bank || '-'}</td>
               <td className="text-xs font-mono">{n.accountNo || '-'}</td>
               <td>
@@ -258,10 +281,10 @@ export default function NursesPage() {
             </tr>
           ))}
           {loading && (
-            <tr><td colSpan={7} className="py-8 text-gray-400">載入中...</td></tr>
+            <tr><td colSpan={8} className="py-8 text-gray-400">載入中...</td></tr>
           )}
           {!loading && nurses.length === 0 && (
-            <tr><td colSpan={7} className="py-8 text-gray-400">尚無資料</td></tr>
+            <tr><td colSpan={8} className="py-8 text-gray-400">尚無資料</td></tr>
           )}
         </tbody>
       </table>
@@ -306,6 +329,13 @@ export default function NursesPage() {
               <div>
                 <label className="block text-sm font-medium mb-1">時薪</label>
                 <input type="number" value={form.hourlyRate} onChange={e => setForm({...form, hourlyRate: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">指派個案</label>
+                <select value={form.defaultCaseId} onChange={e => setForm({...form, defaultCaseId: e.target.value})} className="w-full px-3 py-2 border rounded text-sm">
+                  <option value="">未指派</option>
+                  {cases.map(c => <option key={c.id} value={c.id}>{c.name}（{c.code}）</option>)}
+                </select>
               </div>
 
               <div className="border-t pt-3 mt-2">
