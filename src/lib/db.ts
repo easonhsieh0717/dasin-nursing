@@ -509,20 +509,31 @@ export async function getModificationRequestsByRecordId(recordId: string, status
 }
 
 export async function getModificationRequestStats(orgId: string, startDate?: string, endDate?: string): Promise<Array<{ userId: string; totalClocks: number; totalRequests: number; approved: number; rejected: number; pending: number }>> {
+  // endDate 是日期字串 (YYYY-MM-DD)，需要 +1 天才能包含整天的資料
+  // 因為 PostgreSQL 會把 '2026-03-11' 當作 '2026-03-11T00:00:00Z' (UTC 午夜)
+  let endDateNext: string | undefined;
+  if (endDate) {
+    const d = new Date(endDate + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    endDateNext = d.toISOString().slice(0, 10);
+  }
+
   if (isSupabase) {
     // 取得期間內的打卡紀錄（按使用者分組計數）
     let clockQ = supabase.from('clock_records').select('user_id', { count: 'exact' }).eq('org_id', orgId);
     if (startDate) clockQ = clockQ.gte('clock_in_time', startDate);
-    if (endDate) clockQ = clockQ.lte('clock_in_time', endDate);
-    const { data: clockData } = await clockQ;
+    if (endDateNext) clockQ = clockQ.lt('clock_in_time', endDateNext);
+    const { data: clockData, error: clockErr } = await clockQ;
+    if (clockErr) console.error('Stats clockQ error:', clockErr);
     const clockCounts = new Map<string, number>();
     (clockData || []).forEach((r: { user_id: string }) => clockCounts.set(r.user_id, (clockCounts.get(r.user_id) || 0) + 1));
 
     // 取得期間內的修改申請
     let reqQ = supabase.from('clock_modification_requests').select('*').eq('org_id', orgId);
     if (startDate) reqQ = reqQ.gte('created_at', startDate);
-    if (endDate) reqQ = reqQ.lte('created_at', endDate);
-    const { data: reqData } = await reqQ;
+    if (endDateNext) reqQ = reqQ.lt('created_at', endDateNext);
+    const { data: reqData, error: reqErr } = await reqQ;
+    if (reqErr) console.error('Stats reqQ error:', reqErr);
 
     const reqStats = new Map<string, { total: number; approved: number; rejected: number; pending: number }>();
     (reqData || []).forEach((r: { user_id: string; status: string }) => {
@@ -547,8 +558,8 @@ export async function getModificationRequestStats(orgId: string, startDate?: str
   }
   // Local JSON fallback
   const db = readDB();
-  const records = db.clockRecords.filter(r => r.orgId === orgId && (!startDate || (r.clockInTime && r.clockInTime >= startDate)) && (!endDate || (r.clockInTime && r.clockInTime <= endDate)));
-  const reqs = (db.modificationRequests || []).filter(r => r.orgId === orgId && (!startDate || r.createdAt >= startDate) && (!endDate || r.createdAt <= endDate));
+  const records = db.clockRecords.filter(r => r.orgId === orgId && (!startDate || (r.clockInTime && r.clockInTime >= startDate)) && (!endDateNext || (r.clockInTime && r.clockInTime < endDateNext)));
+  const reqs = (db.modificationRequests || []).filter(r => r.orgId === orgId && (!startDate || r.createdAt >= startDate) && (!endDateNext || r.createdAt < endDateNext));
   const clockCounts = new Map<string, number>();
   records.forEach(r => clockCounts.set(r.userId, (clockCounts.get(r.userId) || 0) + 1));
   const reqStats = new Map<string, { total: number; approved: number; rejected: number; pending: number }>();
