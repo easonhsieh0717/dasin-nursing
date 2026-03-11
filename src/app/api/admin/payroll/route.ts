@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     });
 
     // 按特護彙總
-    const summaryMap = new Map<string, { name: string; userId: string; totalBilling: number; totalSalary: number; shifts: number; bank: string; accountNo: string; accountName: string; isPostOffice: boolean }>();
+    const summaryMap = new Map<string, { name: string; userId: string; totalBilling: number; totalSalary: number; shifts: number; bank: string; accountNo: string; accountName: string; isPostOffice: boolean; caseNames: Set<string> }>();
 
     for (const r of computed) {
       const existing = summaryMap.get(r.userId);
@@ -52,6 +52,7 @@ export async function GET(request: Request) {
         existing.totalBilling += r.billing;
         existing.totalSalary += r.nurseSalary;
         existing.shifts += 1;
+        existing.caseNames.add(r.caseName);
       } else {
         summaryMap.set(r.userId, {
           name: r.userName,
@@ -63,11 +64,15 @@ export async function GET(request: Request) {
           accountNo: user?.accountNo || '',
           accountName: user?.accountName || '',
           isPostOffice: (user?.bank || '').includes('郵局'),
+          caseNames: new Set([r.caseName]),
         });
       }
     }
 
-    const summary = Array.from(summaryMap.values());
+    const summary = Array.from(summaryMap.values()).map(s => ({
+      ...s,
+      caseNames: [...s.caseNames], // Set → Array for JSON serialization
+    }));
     const totalAmount = summary.reduce((sum, s) => sum + s.totalSalary, 0);
     const totalBilling = summary.reduce((sum, s) => sum + s.totalBilling, 0);
     const postOfficeItems = summary.filter(s => s.isPostOffice);

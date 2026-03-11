@@ -12,6 +12,7 @@ interface PayrollItem {
   accountNo: string;
   accountName: string;
   isPostOffice: boolean;
+  caseNames: string[];
 }
 
 interface PayrollData {
@@ -335,27 +336,30 @@ export default function PayrollPage() {
           {postItems.length > 0 && (
             <div className="mb-6">
               <h3 className="text-sm font-bold text-red-600 mb-2 border-l-4 border-red-500 pl-2">郵局發放明細</h3>
+              <p className="text-sm text-red-700 font-bold mb-2">郵局小計：{postItems.length} 筆 | 金額總計：{Math.floor(postItems.reduce((s, i) => s + i.totalSalary, 0)).toLocaleString()} 元</p>
               <div className="table-wrap">
                 <table>
                   <thead>
                     <tr>
-                      <th>特護姓名</th>
-                      <th>戶名</th>
+                      <th>個案</th>
+                      <th>特護全名</th>
+                      <th>帳戶名稱</th>
+                      <th>銀行</th>
                       <th>帳號</th>
-                      <th>班數</th>
-                      <th>請款金額</th>
-                      <th>特護薪資</th>
+                      <th>金額</th>
+                      <th>備註</th>
                     </tr>
                   </thead>
                   <tbody>
                     {postItems.map(item => (
                       <tr key={item.userId}>
+                        <td>{item.caseNames?.join('、') || '-'}</td>
                         <td>{item.name}</td>
                         <td>{item.accountName || item.name}</td>
+                        <td>郵局</td>
                         <td className="font-mono text-xs">{item.accountNo || '-'}</td>
-                        <td>{item.shifts}</td>
-                        <td className="text-blue-700">NT$ {Math.floor(item.totalBilling || 0).toLocaleString()}</td>
-                        <td className="font-bold text-green-700">NT$ {Math.floor(item.totalSalary).toLocaleString()}</td>
+                        <td className="font-bold text-right">{Math.floor(item.totalSalary).toLocaleString()}</td>
+                        <td className="text-xs text-gray-500">備註：薪資</td>
                       </tr>
                     ))}
                   </tbody>
@@ -368,29 +372,30 @@ export default function PayrollPage() {
           {bankItems.length > 0 && (
             <div className="mb-6">
               <h3 className="text-sm font-bold text-blue-600 mb-2 border-l-4 border-blue-500 pl-2">銀行匯款明細</h3>
+              <p className="text-sm text-blue-700 font-bold mb-2">銀行小計：{bankItems.length} 筆 | 金額總計：{Math.floor(bankItems.reduce((s, i) => s + i.totalSalary, 0)).toLocaleString()} 元</p>
               <div className="table-wrap">
                 <table>
                   <thead>
                     <tr>
-                      <th>特護姓名</th>
+                      <th>個案</th>
+                      <th>特護全名</th>
+                      <th>帳戶名稱</th>
                       <th>銀行</th>
                       <th>帳號</th>
-                      <th>戶名</th>
-                      <th>班數</th>
-                      <th>請款金額</th>
-                      <th>特護薪資</th>
+                      <th>金額</th>
+                      <th>備註</th>
                     </tr>
                   </thead>
                   <tbody>
                     {bankItems.map(item => (
                       <tr key={item.userId}>
+                        <td>{item.caseNames?.join('、') || '-'}</td>
                         <td>{item.name}</td>
+                        <td>{item.accountName || item.name}</td>
                         <td className="text-xs">{item.bank || '-'}</td>
                         <td className="font-mono text-xs">{item.accountNo || '-'}</td>
-                        <td>{item.accountName || item.name}</td>
-                        <td>{item.shifts}</td>
-                        <td className="text-blue-700">NT$ {Math.floor(item.totalBilling || 0).toLocaleString()}</td>
-                        <td className="font-bold text-green-700">NT$ {Math.floor(item.totalSalary).toLocaleString()}</td>
+                        <td className="font-bold text-right">{Math.floor(item.totalSalary).toLocaleString()}</td>
+                        <td className="text-xs text-gray-500">備註：薪資</td>
                       </tr>
                     ))}
                   </tbody>
