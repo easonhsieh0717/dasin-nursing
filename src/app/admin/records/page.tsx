@@ -32,6 +32,18 @@ function formatDT(s: string | null): string {
   return `${d.getFullYear()}年${String(d.getMonth()+1).padStart(2,'0')}月${String(d.getDate()).padStart(2,'0')}日 ${String(d.getHours()).padStart(2,'0')}點${String(d.getMinutes()).padStart(2,'0')}分`;
 }
 
+/** 將 ISO 時間字串轉為 datetime-local 格式（本地時區） */
+function toLocalDatetime(s: string | null): string {
+  if (!s) return '';
+  const d = new Date(s);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day}T${h}:${min}`;
+}
+
 function CoordsLink({ lat, lng }: { lat: number | null; lng: number | null }) {
   if (lat === null || lng === null) return <span></span>;
   const url = `https://www.google.com/maps?q=${lat},${lng}`;
@@ -178,8 +190,8 @@ export default function AdminRecordsPage() {
     setEditingRecord(r);
     setFormData({
       userId: r.userId, caseId: r.caseId,
-      clockInTime: r.clockInTime?.slice(0, 16) || '',
-      clockOutTime: r.clockOutTime?.slice(0, 16) || '',
+      clockInTime: toLocalDatetime(r.clockInTime),
+      clockOutTime: toLocalDatetime(r.clockOutTime),
       clockInLat: r.clockInLat?.toString() || '',
       clockInLng: r.clockInLng?.toString() || '',
       clockOutLat: r.clockOutLat?.toString() || '',
@@ -202,8 +214,8 @@ export default function AdminRecordsPage() {
       ...(editingRecord ? { id: editingRecord.id } : {}),
       userId: formData.userId,
       caseId: formData.caseId,
-      clockInTime: formData.clockInTime || null,
-      clockOutTime: formData.clockOutTime || null,
+      clockInTime: formData.clockInTime ? new Date(formData.clockInTime).toISOString() : null,
+      clockOutTime: formData.clockOutTime ? new Date(formData.clockOutTime).toISOString() : null,
       clockInLat: formData.clockInLat ? parseFloat(formData.clockInLat) : null,
       clockInLng: formData.clockInLng ? parseFloat(formData.clockInLng) : null,
       clockOutLat: formData.clockOutLat ? parseFloat(formData.clockOutLat) : null,
