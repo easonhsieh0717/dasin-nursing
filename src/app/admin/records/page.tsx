@@ -70,6 +70,8 @@ export default function AdminRecordsPage() {
 
   // 待審核修改申請
   const [modRequests, setModRequests] = useState<ModRequest[]>([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewingRequest, setReviewingRequest] = useState<ModRequest | null>(null);
 
   // Committed search values（按搜尋按鈕時才更新，避免打字時自動刷新）
   const [searchFilters, setSearchFilters] = useState({
@@ -116,6 +118,14 @@ export default function AdminRecordsPage() {
       .catch(() => {});
   };
 
+  // 建立 recordId → ModRequest 的對照表
+  const modRequestMap = new Map(modRequests.map(r => [r.recordId, r]));
+
+  const openReviewModal = (req: ModRequest) => {
+    setReviewingRequest(req);
+    setShowReviewModal(true);
+  };
+
   const handleReview = async (id: string, action: 'approve' | 'reject') => {
     const msg = action === 'approve' ? '確定同意此修改申請？將自動更新打卡紀錄。' : '確定拒絕此修改申請？';
     if (!confirm(msg)) return;
@@ -130,6 +140,8 @@ export default function AdminRecordsPage() {
       return;
     }
     setModRequests(prev => prev.filter(r => r.id !== id));
+    setShowReviewModal(false);
+    setReviewingRequest(null);
     fetchRecords();
   };
 
@@ -216,49 +228,13 @@ export default function AdminRecordsPage() {
 
   return (
     <div className="p-2 sm:p-4">
-      {/* 待審核修改申請 */}
+      {/* 待審核提示 */}
       {modRequests.length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 mb-3">
-          <h3 className="font-bold text-orange-800 mb-2 text-sm sm:text-base">
-            待審核修改申請 ({modRequests.length})
-          </h3>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>特護</th>
-                  <th>個案</th>
-                  <th>原上班</th>
-                  <th>原下班</th>
-                  <th>建議上班</th>
-                  <th>建議下班</th>
-                  <th>原因</th>
-                  <th>申請時間</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {modRequests.map(req => (
-                  <tr key={req.id}>
-                    <td>{req.userName}</td>
-                    <td>{req.caseName}</td>
-                    <td className="text-gray-500 text-xs">{formatDT(req.originalClockInTime)}</td>
-                    <td className="text-gray-500 text-xs">{formatDT(req.originalClockOutTime)}</td>
-                    <td className="font-bold text-blue-700 text-xs">{formatDT(req.proposedClockInTime)}</td>
-                    <td className="font-bold text-blue-700 text-xs">{formatDT(req.proposedClockOutTime)}</td>
-                    <td className="text-sm max-w-[200px]" title={req.reason}>{req.reason}</td>
-                    <td className="text-xs">{formatDT(req.createdAt)}</td>
-                    <td>
-                      <div className="flex gap-1 justify-center">
-                        <button onClick={() => handleReview(req.id, 'approve')} className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">同意</button>
-                        <button onClick={() => handleReview(req.id, 'reject')} className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600">拒絕</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="bg-orange-50 border border-orange-300 rounded-lg px-4 py-2 mb-3 flex items-center gap-2">
+          <span className="text-orange-600 font-bold text-lg">⚠</span>
+          <span className="font-bold text-orange-800 text-sm">
+            有 {modRequests.length} 筆待簽核修改申請，請在下方表格點擊橘色「簽核」按鈕處理
+          </span>
         </div>
       )}
 
@@ -334,6 +310,7 @@ export default function AdminRecordsPage() {
             // 異常偵測：有上班但未下班，且超過 12 小時
             const isAnomaly = !!(r.clockInTime && !r.clockOutTime &&
               (Date.now() - new Date(r.clockInTime).getTime()) > 12 * 60 * 60 * 1000);
+            const pendingReq = modRequestMap.get(r.id);
             return (
             <tr key={r.id} className={isAnomaly ? 'bg-red-50' : ''}>
               <td>{r.caseName}</td>
@@ -354,6 +331,11 @@ export default function AdminRecordsPage() {
               <td>{r.multiplier && r.multiplier > 1 ? <span className="text-red-600 font-bold">{r.multiplier}x</span> : ''}</td>
               <td>
                 <div className="flex gap-1 justify-center">
+                  {pendingReq ? (
+                    <button onClick={() => openReviewModal(pendingReq)} className="px-2 sm:px-3 py-1 bg-orange-500 text-white rounded text-xs sm:text-sm hover:bg-orange-600 font-bold">簽核</button>
+                  ) : (
+                    <button disabled className="px-2 sm:px-3 py-1 bg-gray-300 text-gray-500 rounded text-xs sm:text-sm cursor-not-allowed">簽核</button>
+                  )}
                   <button onClick={() => openEdit(r)} className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded text-xs sm:text-sm hover:bg-blue-700">編輯</button>
                   <button onClick={() => handleDelete(r.id)} className="px-2 sm:px-3 py-1 bg-red-500 text-white rounded text-xs sm:text-sm hover:bg-red-600">刪除</button>
                 </div>
@@ -387,7 +369,7 @@ export default function AdminRecordsPage() {
         <span className="ml-4 text-sm text-gray-500">共 {total} 筆 | 每頁 10 筆</span>
       </div>
 
-      {/* Modal */}
+      {/* 編輯/新增 Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 overflow-y-auto py-4 sm:py-8">
           <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-lg mx-3 space-y-4 max-h-[90vh] overflow-y-auto">
@@ -423,6 +405,64 @@ export default function AdminRecordsPage() {
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={handleSave} className="px-4 sm:px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">儲存</button>
               <button onClick={() => setShowModal(false)} className="px-4 sm:px-5 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 text-sm">取消</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 簽核 Modal */}
+      {showReviewModal && reviewingRequest && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 overflow-y-auto py-4 sm:py-8">
+          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-lg mx-3 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg sm:text-xl font-bold text-orange-700">簽核修改申請</h2>
+
+            <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">申請人</span>
+                <span className="font-bold">{reviewingRequest.userName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">個案</span>
+                <span className="font-bold">{reviewingRequest.caseName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">申請時間</span>
+                <span>{formatDT(reviewingRequest.createdAt)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-50 p-3 rounded">
+                  <div className="text-xs text-gray-400 mb-1">原始上班時間</div>
+                  <div className="text-sm font-medium">{formatDT(reviewingRequest.originalClockInTime) || '—'}</div>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 p-3 rounded">
+                  <div className="text-xs text-blue-500 mb-1">建議上班時間</div>
+                  <div className="text-sm font-bold text-blue-700">{formatDT(reviewingRequest.proposedClockInTime) || '—'}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-50 p-3 rounded">
+                  <div className="text-xs text-gray-400 mb-1">原始下班時間</div>
+                  <div className="text-sm font-medium">{formatDT(reviewingRequest.originalClockOutTime) || '—'}</div>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 p-3 rounded">
+                  <div className="text-xs text-blue-500 mb-1">建議下班時間</div>
+                  <div className="text-sm font-bold text-blue-700">{formatDT(reviewingRequest.proposedClockOutTime) || '—'}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="text-xs text-yellow-600 font-bold mb-1">修改原因</div>
+              <div className="text-sm text-gray-800">{reviewingRequest.reason}</div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => handleReview(reviewingRequest.id, 'approve')} className="px-4 sm:px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-bold">同意</button>
+              <button onClick={() => handleReview(reviewingRequest.id, 'reject')} className="px-4 sm:px-5 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm font-bold">拒絕</button>
+              <button onClick={() => { setShowReviewModal(false); setReviewingRequest(null); }} className="px-4 sm:px-5 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 text-sm">取消</button>
             </div>
           </div>
         </div>
