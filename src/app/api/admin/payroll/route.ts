@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     });
 
     // 按特護彙總
-    const summaryMap = new Map<string, { name: string; userId: string; totalBilling: number; totalSalary: number; shifts: number; bank: string; accountNo: string; accountName: string; isPostOffice: boolean; caseNames: Set<string> }>();
+    const summaryMap = new Map<string, { name: string; userId: string; totalBilling: number; totalSalary: number; shifts: number; bank: string; accountNo: string; accountName: string; isPostOffice: boolean; caseNames: Set<string>; note: string }>();
 
     for (const r of computed) {
       const existing = summaryMap.get(r.userId);
@@ -63,8 +63,9 @@ export async function GET(request: Request) {
           bank: user?.bank || '',
           accountNo: user?.accountNo || '',
           accountName: user?.accountName || '',
-          isPostOffice: (user?.bank || '').includes('郵局'),
+          isPostOffice: (user?.bank || '').includes('郵局') || (user?.bank || '').includes('郵政'),
           caseNames: new Set([r.caseName]),
+          note: user?.note || '',
         });
       }
     }

@@ -48,6 +48,7 @@ export async function POST(request: Request) {
       accountNo: body.accountNo || '',
       accountName: body.accountName || '',
       defaultCaseId: body.defaultCaseId || undefined,
+      note: body.note || '',
     });
 
     return NextResponse.json(user);

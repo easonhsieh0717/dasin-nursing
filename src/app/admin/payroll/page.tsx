@@ -13,6 +13,7 @@ interface PayrollItem {
   accountName: string;
   isPostOffice: boolean;
   caseNames: string[];
+  note: string;
 }
 
 interface PayrollData {
@@ -359,7 +360,7 @@ export default function PayrollPage() {
                         <td>郵局</td>
                         <td className="font-mono text-xs">{item.accountNo || '-'}</td>
                         <td className="font-bold text-right">{Math.floor(item.totalSalary).toLocaleString()}</td>
-                        <td className="text-xs text-gray-500">備註：薪資</td>
+                        <td className="text-xs text-gray-500">{item.note || ''}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -395,7 +396,7 @@ export default function PayrollPage() {
                         <td className="text-xs">{item.bank || '-'}</td>
                         <td className="font-mono text-xs">{item.accountNo || '-'}</td>
                         <td className="font-bold text-right">{Math.floor(item.totalSalary).toLocaleString()}</td>
-                        <td className="text-xs text-gray-500">備註：薪資</td>
+                        <td className="text-xs text-gray-500">{item.note || ''}</td>
                       </tr>
                     ))}
                   </tbody>

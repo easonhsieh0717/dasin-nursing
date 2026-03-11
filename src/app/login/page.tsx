@@ -48,7 +48,7 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold text-center mb-2 text-gray-800">
           達心特護打卡系統
         </h1>
-        <p className="text-center text-sm text-gray-400 mb-6">v4.4</p>
+        <p className="text-center text-sm text-gray-400 mb-6">v4.5</p>
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div>

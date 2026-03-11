@@ -15,7 +15,48 @@ interface Nurse {
   accountNo: string;
   accountName: string;
   defaultCaseId?: string;
+  note?: string;
 }
+
+// 台灣金融機構代碼（郵局優先，其餘按代碼排序）
+const TAIWAN_BANKS = [
+  { code: '700', name: '中華郵政（郵局）' },
+  { code: '004', name: '臺灣銀行' },
+  { code: '005', name: '臺灣土地銀行' },
+  { code: '006', name: '合作金庫商業銀行' },
+  { code: '007', name: '第一商業銀行' },
+  { code: '008', name: '華南商業銀行' },
+  { code: '009', name: '彰化商業銀行' },
+  { code: '011', name: '上海商業儲蓄銀行' },
+  { code: '012', name: '台北富邦商業銀行' },
+  { code: '013', name: '國泰世華商業銀行' },
+  { code: '016', name: '高雄銀行' },
+  { code: '017', name: '兆豐國際商業銀行' },
+  { code: '018', name: '全國農業金庫' },
+  { code: '048', name: '王道商業銀行' },
+  { code: '050', name: '臺灣中小企業銀行' },
+  { code: '052', name: '渣打國際商業銀行' },
+  { code: '053', name: '台中商業銀行' },
+  { code: '054', name: '京城商業銀行' },
+  { code: '081', name: '匯豐（台灣）商業銀行' },
+  { code: '101', name: '瑞興商業銀行' },
+  { code: '102', name: '華泰商業銀行' },
+  { code: '103', name: '臺灣新光商業銀行' },
+  { code: '108', name: '陽信商業銀行' },
+  { code: '118', name: '板信商業銀行' },
+  { code: '147', name: '三信商業銀行' },
+  { code: '803', name: '聯邦商業銀行' },
+  { code: '805', name: '遠東國際商業銀行' },
+  { code: '806', name: '元大商業銀行' },
+  { code: '807', name: '永豐商業銀行' },
+  { code: '808', name: '玉山商業銀行' },
+  { code: '809', name: '凱基商業銀行' },
+  { code: '810', name: '星展（台灣）商業銀行' },
+  { code: '812', name: '台新國際商業銀行' },
+  { code: '822', name: '中國信託商業銀行' },
+  { code: '824', name: '連線商業銀行（LINE Bank）' },
+  { code: '826', name: '樂天國際商業銀行' },
+];
 
 interface ImportResult {
   success: boolean;
@@ -38,7 +79,7 @@ export default function NursesPage() {
   const [committedSearch, setCommittedSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Nurse | null>(null);
-  const [form, setForm] = useState({ name: '', account: '', password: '', hourlyRate: '200', bank: '', accountNo: '', accountName: '', defaultCaseId: '' });
+  const [form, setForm] = useState({ name: '', account: '', password: '', hourlyRate: '200', bank: '', accountNo: '', accountName: '', defaultCaseId: '', note: '' });
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -81,7 +122,7 @@ export default function NursesPage() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ name: '', account: '', password: '', hourlyRate: '200', bank: '', accountNo: '', accountName: '', defaultCaseId: '' });
+    setForm({ name: '', account: '', password: '', hourlyRate: '200', bank: '', accountNo: '', accountName: '', defaultCaseId: '', note: '' });
     setShowModal(true);
   };
 
@@ -90,7 +131,7 @@ export default function NursesPage() {
     setForm({
       name: n.name, account: n.account, password: n.password, hourlyRate: n.hourlyRate.toString(),
       bank: n.bank || '', accountNo: n.accountNo || '', accountName: n.accountName || '',
-      defaultCaseId: n.defaultCaseId || '',
+      defaultCaseId: n.defaultCaseId || '', note: n.note || '',
     });
     setShowModal(true);
   };
@@ -100,7 +141,7 @@ export default function NursesPage() {
       ...(editing ? { id: editing.id } : {}),
       name: form.name, account: form.account, password: form.password, hourlyRate: parseFloat(form.hourlyRate),
       bank: form.bank, accountNo: form.accountNo, accountName: form.accountName,
-      defaultCaseId: form.defaultCaseId || null,
+      defaultCaseId: form.defaultCaseId || null, note: form.note,
     };
 
     const res = await fetch('/api/admin/nurses', {
@@ -259,6 +300,7 @@ export default function NursesPage() {
             <th>指派個案</th>
             <th>銀行</th>
             <th>銀行帳號</th>
+            <th>備註</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -272,6 +314,7 @@ export default function NursesPage() {
               <td className="text-xs">{cases.find(c => c.id === n.defaultCaseId)?.name || <span className="text-gray-400">未指派</span>}</td>
               <td className="text-xs">{n.bank || '-'}</td>
               <td className="text-xs font-mono">{n.accountNo || '-'}</td>
+              <td className="text-xs">{n.note || '-'}</td>
               <td>
                 <div className="flex gap-1 justify-center">
                   <button onClick={() => openEdit(n)} className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded text-xs sm:text-sm hover:bg-blue-700">編輯</button>
@@ -281,10 +324,10 @@ export default function NursesPage() {
             </tr>
           ))}
           {loading && (
-            <tr><td colSpan={8} className="py-8 text-gray-400">載入中...</td></tr>
+            <tr><td colSpan={9} className="py-8 text-gray-400">載入中...</td></tr>
           )}
           {!loading && nurses.length === 0 && (
-            <tr><td colSpan={8} className="py-8 text-gray-400">尚無資料</td></tr>
+            <tr><td colSpan={9} className="py-8 text-gray-400">尚無資料</td></tr>
           )}
         </tbody>
       </table>
@@ -342,7 +385,10 @@ export default function NursesPage() {
                 <h4 className="font-bold text-orange-700 text-sm mb-2">銀行帳戶資訊（發薪用）</h4>
                 <div>
                   <label className="block text-sm font-medium mb-1">銀行名稱</label>
-                  <input value={form.bank} onChange={e => setForm({...form, bank: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" placeholder="例：中華郵政、國泰世華" />
+                  <select value={form.bank} onChange={e => setForm({...form, bank: e.target.value})} className="w-full px-3 py-2 border rounded text-sm">
+                    <option value="">請選擇銀行</option>
+                    {TAIWAN_BANKS.map(b => <option key={b.code} value={b.name}>({b.code}) {b.name}</option>)}
+                  </select>
                 </div>
                 <div className="mt-2">
                   <label className="block text-sm font-medium mb-1">銀行帳號</label>
@@ -351,6 +397,10 @@ export default function NursesPage() {
                 <div className="mt-2">
                   <label className="block text-sm font-medium mb-1">戶名</label>
                   <input value={form.accountName} onChange={e => setForm({...form, accountName: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" placeholder="帳戶戶名" />
+                </div>
+                <div className="mt-2">
+                  <label className="block text-sm font-medium mb-1">備註</label>
+                  <input value={form.note} onChange={e => setForm({...form, note: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" placeholder="備註（會顯示在發放明細）" />
                 </div>
               </div>
             </div>
