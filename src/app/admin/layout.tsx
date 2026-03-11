@@ -11,6 +11,7 @@ const navItems = [
   { label: '費率', path: '/admin/settings' },
   { label: '發放', path: '/admin/payroll' },
   { label: '報表', path: '/admin/dashboard' },
+  { label: '簽核', path: '/admin/review' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -45,9 +45,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center mb-8 text-gray-800">
+        <h1 className="text-2xl font-bold text-center mb-2 text-gray-800">
           達心特護打卡系統
         </h1>
+        <p className="text-center text-sm text-gray-400 mb-6">v4</p>
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div>

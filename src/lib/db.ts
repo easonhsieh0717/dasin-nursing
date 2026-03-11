@@ -14,6 +14,7 @@ export interface Case { id: string; orgId: string; name: string; code: string; c
 export interface ClockRecord { id: string; orgId: string; userId: string; caseId: string; clockInTime: string | null; clockInLat: number | null; clockInLng: number | null; clockOutTime: string | null; clockOutLat: number | null; clockOutLng: number | null; salary: number; }
 export interface SpecialCondition { id: string; orgId: string; name: string; target: string; multiplier: number; startTime: string; endTime: string; }
 export interface RateSettings { id: string; orgId: string; effectiveDate: string; label: string; mainDayRate: number; mainNightRate: number; otherDayRate: number; otherNightRate: number; fullDayRate24h: number; minBillingHours: number; remoteAreaSubsidy: number; dialysisVisitFee: number; dialysisOvertimeRate: number; }
+export interface ModificationRequest { id: string; orgId: string; recordId: string; userId: string; originalClockInTime: string | null; originalClockOutTime: string | null; proposedClockInTime: string | null; proposedClockOutTime: string | null; reason: string; status: 'pending' | 'approved' | 'rejected'; reviewedBy: string | null; reviewedAt: string | null; createdAt: string; }
 
 // ===== Supabase row mappers =====
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -22,10 +23,11 @@ function toCase(r: any): Case { return { id: r.id, orgId: r.org_id, name: r.name
 function toRecord(r: any): ClockRecord { return { id: r.id, orgId: r.org_id, userId: r.user_id, caseId: r.case_id, clockInTime: r.clock_in_time, clockInLat: r.clock_in_lat, clockInLng: r.clock_in_lng, clockOutTime: r.clock_out_time, clockOutLat: r.clock_out_lat, clockOutLng: r.clock_out_lng, salary: Number(r.salary) }; }
 function toSC(r: any): SpecialCondition { return { id: r.id, orgId: r.org_id, name: r.name, target: r.target, multiplier: Number(r.multiplier), startTime: r.start_time, endTime: r.end_time }; }
 function toRS(r: any): RateSettings { return { id: r.id, orgId: r.org_id, effectiveDate: r.effective_date, label: r.label, mainDayRate: Number(r.main_day_rate), mainNightRate: Number(r.main_night_rate), otherDayRate: Number(r.other_day_rate), otherNightRate: Number(r.other_night_rate), fullDayRate24h: Number(r.full_day_rate_24h), minBillingHours: Number(r.min_billing_hours), remoteAreaSubsidy: Number(r.remote_area_subsidy), dialysisVisitFee: Number(r.dialysis_visit_fee), dialysisOvertimeRate: Number(r.dialysis_overtime_rate) }; }
+function toModReq(r: any): ModificationRequest { return { id: r.id, orgId: r.org_id, recordId: r.record_id, userId: r.user_id, originalClockInTime: r.original_clock_in_time, originalClockOutTime: r.original_clock_out_time, proposedClockInTime: r.proposed_clock_in_time, proposedClockOutTime: r.proposed_clock_out_time, reason: r.reason, status: r.status, reviewedBy: r.reviewed_by, reviewedAt: r.reviewed_at, createdAt: r.created_at }; }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 // ===== Local JSON fallback =====
-interface DB { organizations: Organization[]; users: User[]; cases: Case[]; clockRecords: ClockRecord[]; specialConditions: SpecialCondition[]; rateSettings: RateSettings[]; }
+interface DB { organizations: Organization[]; users: User[]; cases: Case[]; clockRecords: ClockRecord[]; specialConditions: SpecialCondition[]; rateSettings: RateSettings[]; modificationRequests: ModificationRequest[]; }
 
 function generateId(): string { return Date.now().toString(36) + Math.random().toString(36).substring(2, 9); }
 
@@ -52,7 +54,8 @@ function getInitialData(): DB {
       { id: 'rec2', orgId: 'org1', userId: 'emp2', caseId: 'case1', clockInTime: '2026-03-07T11:00:00', clockInLat: 25.0508, clockInLng: 121.5286, clockOutTime: '2026-03-07T19:07:00', clockOutLat: null, clockOutLng: null, salary: 0 },
     ],
     specialConditions: [{ id: 'sc1', orgId: 'org1', name: '過年', target: 'ZSB', multiplier: 2, startTime: '2026-02-16T16:30:00', endTime: '2026-02-21T23:59:00' }],
-    rateSettings: [{ id: 'rate1', orgId: 'org1', effectiveDate: '2024-12-01', label: '113/12/1 生效費率', mainDayRate: 490, mainNightRate: 530, otherDayRate: 550, otherNightRate: 600, fullDayRate24h: 12240, minBillingHours: 8, remoteAreaSubsidy: 500, dialysisVisitFee: 3000, dialysisOvertimeRate: 500 }]
+    rateSettings: [{ id: 'rate1', orgId: 'org1', effectiveDate: '2024-12-01', label: '113/12/1 生效費率', mainDayRate: 490, mainNightRate: 530, otherDayRate: 550, otherNightRate: 600, fullDayRate24h: 12240, minBillingHours: 8, remoteAreaSubsidy: 500, dialysisVisitFee: 3000, dialysisOvertimeRate: 500 }],
+    modificationRequests: [],
   };
 }
 
@@ -440,6 +443,126 @@ export async function getOverdueClockRecords(hoursThreshold: number): Promise<Cl
   return readDB().clockRecords.filter(
     r => r.clockInTime && !r.clockOutTime && new Date(r.clockInTime).getTime() < cutoff
   );
+}
+
+// ===== Modification Requests =====
+export async function getModificationRequests(orgId: string, filters?: { userId?: string; status?: string; recordId?: string }): Promise<ModificationRequest[]> {
+  if (isSupabase) {
+    let q = supabase.from('clock_modification_requests').select('*').eq('org_id', orgId);
+    if (filters?.userId) q = q.eq('user_id', filters.userId);
+    if (filters?.status) q = q.eq('status', filters.status);
+    if (filters?.recordId) q = q.eq('record_id', filters.recordId);
+    q = q.order('created_at', { ascending: false });
+    const { data } = await q;
+    return (data || []).map(toModReq);
+  }
+  let reqs = (readDB().modificationRequests || []).filter(r => r.orgId === orgId);
+  if (filters?.userId) reqs = reqs.filter(r => r.userId === filters.userId);
+  if (filters?.status) reqs = reqs.filter(r => r.status === filters.status);
+  if (filters?.recordId) reqs = reqs.filter(r => r.recordId === filters.recordId);
+  return reqs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export async function createModificationRequest(req: Omit<ModificationRequest, 'id' | 'status' | 'reviewedBy' | 'reviewedAt' | 'createdAt'>): Promise<ModificationRequest> {
+  if (isSupabase) {
+    const { data } = await supabase.from('clock_modification_requests').insert({
+      org_id: req.orgId, record_id: req.recordId, user_id: req.userId,
+      original_clock_in_time: req.originalClockInTime, original_clock_out_time: req.originalClockOutTime,
+      proposed_clock_in_time: req.proposedClockInTime, proposed_clock_out_time: req.proposedClockOutTime,
+      reason: req.reason, status: 'pending',
+    }).select().single();
+    return toModReq(data);
+  }
+  const db = readDB();
+  if (!db.modificationRequests) db.modificationRequests = [];
+  const n: ModificationRequest = { ...req, id: generateId(), status: 'pending', reviewedBy: null, reviewedAt: null, createdAt: new Date().toISOString() };
+  db.modificationRequests.push(n);
+  writeDB(db);
+  return n;
+}
+
+export async function updateModificationRequestStatus(id: string, status: 'approved' | 'rejected', reviewedBy: string): Promise<ModificationRequest | null> {
+  if (isSupabase) {
+    const { data } = await supabase.from('clock_modification_requests').update({
+      status, reviewed_by: reviewedBy, reviewed_at: new Date().toISOString(),
+    }).eq('id', id).select().single();
+    return data ? toModReq(data) : null;
+  }
+  const db = readDB();
+  const idx = (db.modificationRequests || []).findIndex(r => r.id === id);
+  if (idx === -1) return null;
+  db.modificationRequests[idx] = { ...db.modificationRequests[idx], status, reviewedBy, reviewedAt: new Date().toISOString() };
+  writeDB(db);
+  return db.modificationRequests[idx];
+}
+
+export async function getModificationRequestsByRecordId(recordId: string, status?: string): Promise<ModificationRequest[]> {
+  if (isSupabase) {
+    let q = supabase.from('clock_modification_requests').select('*').eq('record_id', recordId);
+    if (status) q = q.eq('status', status);
+    const { data } = await q;
+    return (data || []).map(toModReq);
+  }
+  let reqs = (readDB().modificationRequests || []).filter(r => r.recordId === recordId);
+  if (status) reqs = reqs.filter(r => r.status === status);
+  return reqs;
+}
+
+export async function getModificationRequestStats(orgId: string, startDate?: string, endDate?: string): Promise<Array<{ userId: string; totalClocks: number; totalRequests: number; approved: number; rejected: number; pending: number }>> {
+  if (isSupabase) {
+    // 取得期間內的打卡紀錄（按使用者分組計數）
+    let clockQ = supabase.from('clock_records').select('user_id', { count: 'exact' }).eq('org_id', orgId);
+    if (startDate) clockQ = clockQ.gte('clock_in_time', startDate);
+    if (endDate) clockQ = clockQ.lte('clock_in_time', endDate);
+    const { data: clockData } = await clockQ;
+    const clockCounts = new Map<string, number>();
+    (clockData || []).forEach((r: { user_id: string }) => clockCounts.set(r.user_id, (clockCounts.get(r.user_id) || 0) + 1));
+
+    // 取得期間內的修改申請
+    let reqQ = supabase.from('clock_modification_requests').select('*').eq('org_id', orgId);
+    if (startDate) reqQ = reqQ.gte('created_at', startDate);
+    if (endDate) reqQ = reqQ.lte('created_at', endDate);
+    const { data: reqData } = await reqQ;
+
+    const reqStats = new Map<string, { total: number; approved: number; rejected: number; pending: number }>();
+    (reqData || []).forEach((r: { user_id: string; status: string }) => {
+      const s = reqStats.get(r.user_id) || { total: 0, approved: 0, rejected: 0, pending: 0 };
+      s.total++;
+      if (r.status === 'approved') s.approved++;
+      else if (r.status === 'rejected') s.rejected++;
+      else s.pending++;
+      reqStats.set(r.user_id, s);
+    });
+
+    // 合併所有 userId
+    const allUserIds = new Set([...clockCounts.keys(), ...reqStats.keys()]);
+    return [...allUserIds].map(userId => ({
+      userId,
+      totalClocks: clockCounts.get(userId) || 0,
+      totalRequests: reqStats.get(userId)?.total || 0,
+      approved: reqStats.get(userId)?.approved || 0,
+      rejected: reqStats.get(userId)?.rejected || 0,
+      pending: reqStats.get(userId)?.pending || 0,
+    }));
+  }
+  // Local JSON fallback
+  const db = readDB();
+  const records = db.clockRecords.filter(r => r.orgId === orgId && (!startDate || (r.clockInTime && r.clockInTime >= startDate)) && (!endDate || (r.clockInTime && r.clockInTime <= endDate)));
+  const reqs = (db.modificationRequests || []).filter(r => r.orgId === orgId && (!startDate || r.createdAt >= startDate) && (!endDate || r.createdAt <= endDate));
+  const clockCounts = new Map<string, number>();
+  records.forEach(r => clockCounts.set(r.userId, (clockCounts.get(r.userId) || 0) + 1));
+  const reqStats = new Map<string, { total: number; approved: number; rejected: number; pending: number }>();
+  reqs.forEach(r => {
+    const s = reqStats.get(r.userId) || { total: 0, approved: 0, rejected: 0, pending: 0 };
+    s.total++; if (r.status === 'approved') s.approved++; else if (r.status === 'rejected') s.rejected++; else s.pending++;
+    reqStats.set(r.userId, s);
+  });
+  const allUserIds = new Set([...clockCounts.keys(), ...reqStats.keys()]);
+  return [...allUserIds].map(userId => ({
+    userId, totalClocks: clockCounts.get(userId) || 0,
+    totalRequests: reqStats.get(userId)?.total || 0, approved: reqStats.get(userId)?.approved || 0,
+    rejected: reqStats.get(userId)?.rejected || 0, pending: reqStats.get(userId)?.pending || 0,
+  }));
 }
 
 // ===== Enrichment =====

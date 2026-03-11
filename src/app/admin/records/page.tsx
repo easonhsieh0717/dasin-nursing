@@ -24,6 +24,7 @@ interface EnrichedRecord {
 
 interface NurseOption { id: string; name: string; }
 interface CaseOption { id: string; name: string; code: string; }
+interface ModRequest { id: string; recordId: string; userId: string; userName: string; caseName: string; caseCode: string; originalClockInTime: string | null; originalClockOutTime: string | null; proposedClockInTime: string | null; proposedClockOutTime: string | null; reason: string; status: string; createdAt: string; }
 
 function formatDT(s: string | null): string {
   if (!s) return '';
@@ -67,6 +68,9 @@ export default function AdminRecordsPage() {
     clockInLat: '', clockInLng: '', clockOutLat: '', clockOutLng: '', salary: '0'
   });
 
+  // 待審核修改申請
+  const [modRequests, setModRequests] = useState<ModRequest[]>([]);
+
   // Committed search values（按搜尋按鈕時才更新，避免打字時自動刷新）
   const [searchFilters, setSearchFilters] = useState({
     startTime: '', endTime: '', clockType: 'in' as 'in' | 'out',
@@ -102,7 +106,32 @@ export default function AdminRecordsPage() {
   useEffect(() => {
     fetch('/api/admin/nurses?all=true').then(r => r.json()).then(d => setNurses(d.data || []));
     fetch('/api/admin/cases?all=true').then(r => r.json()).then(d => setCases(d.data || []));
+    fetchModRequests();
   }, []);
+
+  const fetchModRequests = () => {
+    fetch('/api/admin/modification-requests?status=pending')
+      .then(r => r.json())
+      .then(d => setModRequests(d.data || []))
+      .catch(() => {});
+  };
+
+  const handleReview = async (id: string, action: 'approve' | 'reject') => {
+    const msg = action === 'approve' ? '確定同意此修改申請？將自動更新打卡紀錄。' : '確定拒絕此修改申請？';
+    if (!confirm(msg)) return;
+    const res = await fetch('/api/admin/modification-requests', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || '操作失敗');
+      return;
+    }
+    setModRequests(prev => prev.filter(r => r.id !== id));
+    fetchRecords();
+  };
 
   const handleExport = () => {
     const params = new URLSearchParams();
@@ -187,6 +216,52 @@ export default function AdminRecordsPage() {
 
   return (
     <div className="p-2 sm:p-4">
+      {/* 待審核修改申請 */}
+      {modRequests.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 mb-3">
+          <h3 className="font-bold text-orange-800 mb-2 text-sm sm:text-base">
+            待審核修改申請 ({modRequests.length})
+          </h3>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>特護</th>
+                  <th>個案</th>
+                  <th>原上班</th>
+                  <th>原下班</th>
+                  <th>建議上班</th>
+                  <th>建議下班</th>
+                  <th>原因</th>
+                  <th>申請時間</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {modRequests.map(req => (
+                  <tr key={req.id}>
+                    <td>{req.userName}</td>
+                    <td>{req.caseName}</td>
+                    <td className="text-gray-500 text-xs">{formatDT(req.originalClockInTime)}</td>
+                    <td className="text-gray-500 text-xs">{formatDT(req.originalClockOutTime)}</td>
+                    <td className="font-bold text-blue-700 text-xs">{formatDT(req.proposedClockInTime)}</td>
+                    <td className="font-bold text-blue-700 text-xs">{formatDT(req.proposedClockOutTime)}</td>
+                    <td className="text-sm max-w-[200px]" title={req.reason}>{req.reason}</td>
+                    <td className="text-xs">{formatDT(req.createdAt)}</td>
+                    <td>
+                      <div className="flex gap-1 justify-center">
+                        <button onClick={() => handleReview(req.id, 'approve')} className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">同意</button>
+                        <button onClick={() => handleReview(req.id, 'reject')} className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600">拒絕</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="bg-white p-3 sm:p-4 rounded-lg mb-3 space-y-2 sm:space-y-3">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
