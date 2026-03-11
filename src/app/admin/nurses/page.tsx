@@ -54,6 +54,7 @@ const TAIWAN_BANKS = [
   { code: '810', name: '星展（台灣）商業銀行' },
   { code: '812', name: '台新國際商業銀行' },
   { code: '822', name: '中國信託商業銀行' },
+  { code: '823', name: '將來商業銀行（NEXT Bank）' },
   { code: '824', name: '連線商業銀行（LINE Bank）' },
   { code: '826', name: '樂天國際商業銀行' },
 ];
