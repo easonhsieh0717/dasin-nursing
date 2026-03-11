@@ -240,13 +240,38 @@ export default function AdminRecordsPage() {
 
   return (
     <div className="p-2 sm:p-4">
-      {/* 待審核提示 */}
+      {/* 待審核修改申請區塊 — 直接可操作 */}
       {modRequests.length > 0 && (
-        <div className="bg-orange-50 border border-orange-300 rounded-lg px-4 py-2 mb-3 flex items-center gap-2">
-          <span className="text-orange-600 font-bold text-lg">⚠</span>
-          <span className="font-bold text-orange-800 text-sm">
-            有 {modRequests.length} 筆待簽核修改申請，請在下方表格點擊橘色「簽核」按鈕處理
-          </span>
+        <div className="bg-orange-50 border-2 border-orange-400 rounded-lg mb-3 overflow-hidden">
+          <div className="bg-orange-100 px-4 py-2 flex items-center gap-2">
+            <span className="text-orange-600 font-bold text-lg">⚠</span>
+            <span className="font-bold text-orange-800 text-sm">
+              待簽核修改申請（{modRequests.length} 筆）
+            </span>
+          </div>
+          <div className="divide-y divide-orange-200">
+            {modRequests.map(req => (
+              <div key={req.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <div className="flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-bold text-gray-800">{req.userName}</span>
+                    <span className="text-gray-400">|</span>
+                    <span className="text-gray-600">{req.caseName}</span>
+                    <span className="text-gray-400">|</span>
+                    <span className="text-xs text-gray-400">{formatDT(req.createdAt)}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    <span className="text-gray-500">上班：<span className="line-through">{formatDT(req.originalClockInTime) || '—'}</span> → <span className="font-bold text-blue-700">{formatDT(req.proposedClockInTime) || '—'}</span></span>
+                    <span className="text-gray-500">下班：<span className="line-through">{formatDT(req.originalClockOutTime) || '—'}</span> → <span className="font-bold text-blue-700">{formatDT(req.proposedClockOutTime) || '—'}</span></span>
+                  </div>
+                  <div className="text-xs text-yellow-700 bg-yellow-50 inline-block px-2 py-0.5 rounded">原因：{req.reason}</div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={() => openReviewModal(req)} className="px-3 py-1.5 bg-orange-500 text-white rounded text-sm hover:bg-orange-600 font-bold">審核</button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
