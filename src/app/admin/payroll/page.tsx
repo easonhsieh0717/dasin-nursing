@@ -22,6 +22,9 @@ interface PayrollData {
   postOfficeAmount: number;
   bankCount: number;
   bankAmount: number;
+  recordIds: string[];
+  paidCount: number;
+  unpaidCount: number;
 }
 
 export default function PayrollPage() {
@@ -29,6 +32,7 @@ export default function PayrollPage() {
   const [endTime, setEndTime] = useState('');
   const [data, setData] = useState<PayrollData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   const fetchPayroll = async () => {
@@ -44,6 +48,35 @@ export default function PayrollPage() {
       alert('載入失敗');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!data || data.unpaidCount === 0) return;
+    if (!confirm(`確定要標記這 ${data.unpaidCount} 筆紀錄為已發放？此操作無法撤銷。`)) return;
+
+    setConfirming(true);
+    try {
+      const res = await fetch('/api/admin/payroll/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recordIds: data.recordIds }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        alert(d.error || '操作失敗');
+        return;
+      }
+      alert(`已成功標記 ${d.count} 筆紀錄為已發放！`);
+      // 自動列印
+      printPostalSlips();
+      printBankList();
+      // 重新載入資料
+      await fetchPayroll();
+    } catch {
+      alert('系統錯誤');
+    } finally {
+      setConfirming(false);
     }
   };
 
@@ -260,6 +293,18 @@ export default function PayrollPage() {
             </div>
           </div>
 
+          {/* 發放狀態提示 */}
+          {data.paidCount > 0 && data.unpaidCount === 0 && (
+            <div className="bg-green-50 border border-green-300 rounded-lg p-3 mb-4 text-sm text-green-800 font-bold">
+              ✓ 此期間 {data.paidCount} 筆紀錄已全部發放
+            </div>
+          )}
+          {data.paidCount > 0 && data.unpaidCount > 0 && (
+            <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 mb-4 text-sm text-yellow-800">
+              已發放 {data.paidCount} 筆，尚有 <span className="font-bold text-red-600">{data.unpaidCount} 筆未發放</span>
+            </div>
+          )}
+
           {/* Hint: missing bank info */}
           {data.summary.some(s => !s.bank && !s.accountNo) && (
             <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 mb-4 text-sm text-yellow-800">
@@ -269,6 +314,11 @@ export default function PayrollPage() {
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2 mb-4">
+            <button onClick={handleConfirmPayment}
+              disabled={data.unpaidCount === 0 || confirming}
+              className="px-5 py-2.5 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 text-sm disabled:opacity-40 disabled:cursor-not-allowed shadow-md">
+              {confirming ? '處理中...' : `✓ 確定發放 (${data.unpaidCount} 筆)`}
+            </button>
             <button onClick={printPostalSlips}
               disabled={data.postOfficeCount === 0}
               className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 text-sm disabled:opacity-40 disabled:cursor-not-allowed">

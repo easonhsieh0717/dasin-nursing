@@ -43,6 +43,7 @@ export async function POST(request: Request) {
         clockOutLat: null,
         clockOutLng: null,
         salary: 0,
+        paidAt: null,
       });
 
       return NextResponse.json({ success: true, record });

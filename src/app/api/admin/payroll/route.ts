@@ -73,6 +73,11 @@ export async function GET(request: Request) {
     const postOfficeItems = summary.filter(s => s.isPostOffice);
     const bankItems = summary.filter(s => !s.isPostOffice);
 
+    // 取得所有紀錄 ID 及發放狀態
+    const recordIds = records.map(r => r.id);
+    const paidCount = records.filter(r => r.paidAt).length;
+    const unpaidCount = records.length - paidCount;
+
     return NextResponse.json({
       summary,
       totalAmount,
@@ -81,6 +86,9 @@ export async function GET(request: Request) {
       postOfficeAmount: postOfficeItems.reduce((sum, s) => sum + s.totalSalary, 0),
       bankCount: bankItems.length,
       bankAmount: bankItems.reduce((sum, s) => sum + s.totalSalary, 0),
+      recordIds,
+      paidCount,
+      unpaidCount,
     });
   } catch (err) {
     console.error('Payroll GET error:', err);

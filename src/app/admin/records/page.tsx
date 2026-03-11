@@ -20,6 +20,7 @@ interface EnrichedRecord {
   multiplier?: number;
   userId: string;
   caseId: string;
+  paidAt: string | null;
 }
 
 interface NurseOption { id: string; name: string; }
@@ -339,6 +340,7 @@ export default function AdminRecordsPage() {
             <th>請款金額</th>
             <th>特護薪資</th>
             <th>倍率</th>
+            <th>發放</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -366,6 +368,7 @@ export default function AdminRecordsPage() {
               <td className="font-bold text-blue-700">{r.billing ?? r.calculatedSalary ?? r.salary}</td>
               <td className="font-bold text-green-700">{r.nurseSalary ?? ''}</td>
               <td>{r.multiplier && r.multiplier > 1 ? <span className="text-red-600 font-bold">{r.multiplier}x</span> : ''}</td>
+              <td>{r.paidAt ? <span className="text-green-600 font-bold text-xs">✓ 已發放</span> : <span className="text-gray-400 text-xs">未發放</span>}</td>
               <td>
                 <div className="flex gap-1 justify-center">
                   {pendingReq ? (
@@ -381,10 +384,10 @@ export default function AdminRecordsPage() {
             );
           })}
           {loading && (
-            <tr><td colSpan={11} className="py-8 text-gray-400">載入中...</td></tr>
+            <tr><td colSpan={12} className="py-8 text-gray-400">載入中...</td></tr>
           )}
           {!loading && records.length === 0 && (
-            <tr><td colSpan={11} className="py-8 text-gray-400">尚無紀錄</td></tr>
+            <tr><td colSpan={12} className="py-8 text-gray-400">尚無紀錄</td></tr>
           )}
         </tbody>
       </table>

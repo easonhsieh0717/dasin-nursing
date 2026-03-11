@@ -79,6 +79,7 @@ export async function POST(request: Request) {
       clockOutLat: body.clockOutLat || null,
       clockOutLng: body.clockOutLng || null,
       salary: body.salary || 0,
+      paidAt: null,
     });
 
     return NextResponse.json(record);

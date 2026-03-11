@@ -11,7 +11,7 @@ const DB_PATH = isVercel
 export interface Organization { id: string; code: string; name: string; }
 export interface User { id: string; orgId: string; name: string; account: string; password: string; role: 'admin' | 'employee'; hourlyRate: number; bank?: string; accountNo?: string; accountName?: string; defaultCaseId?: string; }
 export interface Case { id: string; orgId: string; name: string; code: string; caseType: string; settlementType: string; }
-export interface ClockRecord { id: string; orgId: string; userId: string; caseId: string; clockInTime: string | null; clockInLat: number | null; clockInLng: number | null; clockOutTime: string | null; clockOutLat: number | null; clockOutLng: number | null; salary: number; }
+export interface ClockRecord { id: string; orgId: string; userId: string; caseId: string; clockInTime: string | null; clockInLat: number | null; clockInLng: number | null; clockOutTime: string | null; clockOutLat: number | null; clockOutLng: number | null; salary: number; paidAt: string | null; }
 export interface SpecialCondition { id: string; orgId: string; name: string; target: string; multiplier: number; startTime: string; endTime: string; }
 export interface RateSettings { id: string; orgId: string; effectiveDate: string; label: string; mainDayRate: number; mainNightRate: number; otherDayRate: number; otherNightRate: number; fullDayRate24h: number; minBillingHours: number; remoteAreaSubsidy: number; dialysisVisitFee: number; dialysisOvertimeRate: number; }
 export interface ModificationRequest { id: string; orgId: string; recordId: string; userId: string; originalClockInTime: string | null; originalClockOutTime: string | null; proposedClockInTime: string | null; proposedClockOutTime: string | null; reason: string; status: 'pending' | 'approved' | 'rejected'; reviewedBy: string | null; reviewedAt: string | null; createdAt: string; }
@@ -20,7 +20,7 @@ export interface ModificationRequest { id: string; orgId: string; recordId: stri
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function toUser(r: any): User { return { id: r.id, orgId: r.org_id, name: r.name, account: r.account, password: r.password, role: r.role, hourlyRate: Number(r.hourly_rate), bank: r.bank || '', accountNo: r.account_no || '', accountName: r.account_name || '', defaultCaseId: r.default_case_id || undefined }; }
 function toCase(r: any): Case { return { id: r.id, orgId: r.org_id, name: r.name, code: r.code, caseType: r.case_type, settlementType: r.settlement_type }; }
-function toRecord(r: any): ClockRecord { return { id: r.id, orgId: r.org_id, userId: r.user_id, caseId: r.case_id, clockInTime: r.clock_in_time, clockInLat: r.clock_in_lat, clockInLng: r.clock_in_lng, clockOutTime: r.clock_out_time, clockOutLat: r.clock_out_lat, clockOutLng: r.clock_out_lng, salary: Number(r.salary) }; }
+function toRecord(r: any): ClockRecord { return { id: r.id, orgId: r.org_id, userId: r.user_id, caseId: r.case_id, clockInTime: r.clock_in_time, clockInLat: r.clock_in_lat, clockInLng: r.clock_in_lng, clockOutTime: r.clock_out_time, clockOutLat: r.clock_out_lat, clockOutLng: r.clock_out_lng, salary: Number(r.salary), paidAt: r.paid_at || null }; }
 function toSC(r: any): SpecialCondition { return { id: r.id, orgId: r.org_id, name: r.name, target: r.target, multiplier: Number(r.multiplier), startTime: r.start_time, endTime: r.end_time }; }
 function toRS(r: any): RateSettings { return { id: r.id, orgId: r.org_id, effectiveDate: r.effective_date, label: r.label, mainDayRate: Number(r.main_day_rate), mainNightRate: Number(r.main_night_rate), otherDayRate: Number(r.other_day_rate), otherNightRate: Number(r.other_night_rate), fullDayRate24h: Number(r.full_day_rate_24h), minBillingHours: Number(r.min_billing_hours), remoteAreaSubsidy: Number(r.remote_area_subsidy), dialysisVisitFee: Number(r.dialysis_visit_fee), dialysisOvertimeRate: Number(r.dialysis_overtime_rate) }; }
 function toModReq(r: any): ModificationRequest { return { id: r.id, orgId: r.org_id, recordId: r.record_id, userId: r.user_id, originalClockInTime: r.original_clock_in_time, originalClockOutTime: r.original_clock_out_time, proposedClockInTime: r.proposed_clock_in_time, proposedClockOutTime: r.proposed_clock_out_time, reason: r.reason, status: r.status, reviewedBy: r.reviewed_by, reviewedAt: r.reviewed_at, createdAt: r.created_at }; }
@@ -50,8 +50,8 @@ function getInitialData(): DB {
       { id: 'case4', orgId: 'org1', name: '天母居家奶奶', code: 'TMJJN', caseType: '一般', settlementType: '月' },
     ],
     clockRecords: [
-      { id: 'rec1', orgId: 'org1', userId: 'emp1', caseId: 'case1', clockInTime: '2026-03-06T23:50:00', clockInLat: 25.0503, clockInLng: 121.5295, clockOutTime: '2026-03-07T08:16:00', clockOutLat: 25.0506, clockOutLng: 121.5286, salary: 0 },
-      { id: 'rec2', orgId: 'org1', userId: 'emp2', caseId: 'case1', clockInTime: '2026-03-07T11:00:00', clockInLat: 25.0508, clockInLng: 121.5286, clockOutTime: '2026-03-07T19:07:00', clockOutLat: null, clockOutLng: null, salary: 0 },
+      { id: 'rec1', orgId: 'org1', userId: 'emp1', caseId: 'case1', clockInTime: '2026-03-06T23:50:00', clockInLat: 25.0503, clockInLng: 121.5295, clockOutTime: '2026-03-07T08:16:00', clockOutLat: 25.0506, clockOutLng: 121.5286, salary: 0, paidAt: null },
+      { id: 'rec2', orgId: 'org1', userId: 'emp2', caseId: 'case1', clockInTime: '2026-03-07T11:00:00', clockInLat: 25.0508, clockInLng: 121.5286, clockOutTime: '2026-03-07T19:07:00', clockOutLat: null, clockOutLng: null, salary: 0, paidAt: null },
     ],
     specialConditions: [{ id: 'sc1', orgId: 'org1', name: '過年', target: 'ZSB', multiplier: 2, startTime: '2026-02-16T16:30:00', endTime: '2026-02-21T23:59:00' }],
     rateSettings: [{ id: 'rate1', orgId: 'org1', effectiveDate: '2024-12-01', label: '113/12/1 生效費率', mainDayRate: 490, mainNightRate: 530, otherDayRate: 550, otherNightRate: 600, fullDayRate24h: 12240, minBillingHours: 8, remoteAreaSubsidy: 500, dialysisVisitFee: 3000, dialysisOvertimeRate: 500 }],
@@ -292,10 +292,27 @@ export async function updateClockRecord(id: string, data: Partial<ClockRecord>):
     if (data.salary !== undefined) update.salary = data.salary;
     if (data.userId !== undefined) update.user_id = data.userId;
     if (data.caseId !== undefined) update.case_id = data.caseId;
+    if (data.paidAt !== undefined) update.paid_at = data.paidAt;
     const { data: row } = await supabase.from('clock_records').update(update).eq('id', id).select().single();
     return row ? toRecord(row) : null;
   }
   const db = readDB(); const idx = db.clockRecords.findIndex(r => r.id === id); if (idx === -1) return null; db.clockRecords[idx] = { ...db.clockRecords[idx], ...data }; writeDB(db); return db.clockRecords[idx];
+}
+
+export async function markRecordsAsPaid(recordIds: string[]): Promise<number> {
+  if (recordIds.length === 0) return 0;
+  const now = new Date().toISOString();
+  if (isSupabase) {
+    const { data } = await supabase.from('clock_records').update({ paid_at: now }).in('id', recordIds).is('paid_at', null).select('id');
+    return data?.length || 0;
+  }
+  const db = readDB();
+  let count = 0;
+  db.clockRecords.forEach(r => {
+    if (recordIds.includes(r.id) && !r.paidAt) { r.paidAt = now; count++; }
+  });
+  writeDB(db);
+  return count;
 }
 
 export async function deleteClockRecord(id: string): Promise<boolean> {
