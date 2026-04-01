@@ -43,24 +43,42 @@ export async function POST(request: Request) {
     if (amount <= 0) return NextResponse.json({ error: '請輸入正確金額' }, { status: 400 });
     if (!expenseDate) return NextResponse.json({ error: '請選擇日期' }, { status: 400 });
 
-    // Handle image upload
+    // Handle image upload with security validation
     let imageUrl = '';
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const MAGIC_BYTES: Record<string, number[]> = {
+      'image/jpeg': [0xFF, 0xD8, 0xFF],
+      'image/png': [0x89, 0x50, 0x4E, 0x47],
+      'image/gif': [0x47, 0x49, 0x46],
+      'image/webp': [0x52, 0x49, 0x46, 0x46],
+    };
     if (image && image.size > 0) {
       if (image.size > 4 * 1024 * 1024) {
         return NextResponse.json({ error: '圖片大小不可超過 4MB' }, { status: 400 });
       }
+      if (!ALLOWED_TYPES.includes(image.type)) {
+        return NextResponse.json({ error: '僅接受 JPG/PNG/WebP/GIF 圖片格式' }, { status: 400 });
+      }
+      const buffer = Buffer.from(await image.arrayBuffer());
+      // Validate magic bytes to prevent disguised file uploads
+      const header = Array.from(buffer.slice(0, 8));
+      const isValidMagic = Object.values(MAGIC_BYTES).some(magic =>
+        magic.every((b, i) => header[i] === b)
+      );
+      if (!isValidMagic) {
+        return NextResponse.json({ error: '檔案內容非有效圖片，請上傳正確的圖片檔案' }, { status: 400 });
+      }
       if (isSupabase) {
-        const ext = image.name.split('.').pop() || 'jpg';
-        const fileName = `${session.orgId}/${session.userId}/${Date.now()}.${ext}`;
-        const buffer = Buffer.from(await image.arrayBuffer());
+        const ext = image.name.split('.').pop()?.toLowerCase().replace(/[^a-z]/g, '') || 'jpg';
+        const safeExt = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'jpg';
+        const fileName = `${session.orgId}/${session.userId}/${Date.now()}.${safeExt}`;
         const { error: uploadErr } = await supabase.storage
           .from('expense-images')
           .upload(fileName, buffer, { contentType: image.type });
         if (!uploadErr) {
-          imageUrl = fileName; // 存儲路徑，GET 時再產生 signed URL
+          imageUrl = fileName;
         }
       } else {
-        const buffer = Buffer.from(await image.arrayBuffer());
         imageUrl = `data:${image.type};base64,${buffer.toString('base64')}`;
       }
     }

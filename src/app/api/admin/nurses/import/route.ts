@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getUsers, createUser, updateUser, getRateSettings } from '@/lib/db';
+import crypto from 'crypto';
+
+/** Generate a random 8-char alphanumeric password for newly imported nurses */
+function generateRandomPassword(): string {
+  return crypto.randomBytes(4).toString('hex'); // 8 hex chars
+}
 
 interface ImportItem {
   name: string;
@@ -75,7 +81,7 @@ export async function POST(request: Request) {
           orgId: session.orgId,
           name,
           account,
-          password: '0000',
+          password: generateRandomPassword(),
           role: 'employee',
           hourlyRate: defaultRate,
           bank: item.bank || '',

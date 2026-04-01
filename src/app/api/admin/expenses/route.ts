@@ -87,8 +87,8 @@ export async function DELETE(request: Request) {
     const { id } = await request.json();
     if (!id) return NextResponse.json({ error: '參數錯誤' }, { status: 400 });
 
-    const deleted = await deleteAdvanceExpense(id);
-    if (!deleted) return NextResponse.json({ error: '找不到此紀錄' }, { status: 404 });
+    const deleted = await deleteAdvanceExpense(id, session.orgId);
+    if (!deleted) return NextResponse.json({ error: '找不到此紀錄或無權限刪除' }, { status: 404 });
 
     return NextResponse.json({ success: true });
   } catch (err) {

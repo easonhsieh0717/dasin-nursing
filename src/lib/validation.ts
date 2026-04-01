@@ -17,7 +17,7 @@ export const updateCaseSchema = createCaseSchema.partial().extend({
 export const createNurseSchema = z.object({
   name: z.string().min(1, '名稱必填').max(100),
   account: z.string().min(1, '帳號必填').max(100),
-  password: z.string().min(1, '密碼必填').max(100),
+  password: z.string().min(4, '密碼至少 4 個字元').max(100),
   hourlyRate: z.number().min(0).max(100000).default(0),
   bank: z.string().max(200).default(''),
   accountNo: z.string().max(100).default(''),
@@ -65,17 +65,29 @@ export const updateRecordSchema = z.object({
   salary: z.number().min(0).optional(),
 });
 
-// ─── Special Conditions ───
+// ─── Special Conditions (Admin) ───
 export const specialConditionSchema = z.object({
   id: z.string().optional(),
-  dayType: z.string().min(1, '缺少日期類型'),
-  date: z.string().optional(),
+  dayType: z.string().min(1, '缺少日期類型').max(100),
+  date: z.string().max(50).optional(),
   dayOfWeek: z.number().min(0).max(6).optional(),
   multiplier: z.number().min(0.1).max(10),
   note: z.string().max(200).default(''),
 });
 
-// ─── Rate Settings ───
+export const createSpecialSchema = z.object({
+  name: z.string().min(1, '名稱必填').max(100),
+  target: z.string().min(1, '對象必填').max(100),
+  multiplier: z.number().min(0.1).max(10),
+  startTime: z.string().min(1, '開始時間必填'),
+  endTime: z.string().min(1, '結束時間必填'),
+});
+
+export const updateSpecialSchema = createSpecialSchema.partial().extend({
+  id: z.string().min(1, '缺少 ID'),
+});
+
+// ─── Rate Settings (Admin) ───
 export const rateSettingsSchema = z.object({
   id: z.string().optional(),
   dayRate: z.number().min(0),
@@ -85,18 +97,75 @@ export const rateSettingsSchema = z.object({
   salaryRatio: z.number().min(0).max(1),
 });
 
-// ─── Receipts ───
+export const createRateSettingsSchema = z.object({
+  effectiveDate: z.string().min(1, '生效日期必填'),
+  label: z.string().max(200).default(''),
+  mainDayRate: z.number().min(0).max(100000),
+  mainNightRate: z.number().min(0).max(100000),
+  otherDayRate: z.number().min(0).max(100000),
+  otherNightRate: z.number().min(0).max(100000),
+  fullDayRate24h: z.number().min(0).max(1000000).default(0),
+  minBillingHours: z.number().min(0).max(24).default(0),
+  remoteAreaSubsidy: z.number().min(0).max(100000).default(0),
+  dialysisVisitFee: z.number().min(0).max(100000).default(0),
+  dialysisOvertimeRate: z.number().min(0).max(100000).default(0),
+});
+
+// ─── Receipts (Admin) ───
 export const createReceiptSchema = z.object({
   caseId: z.string().min(1, '缺少個案 ID'),
-  receiptNumber: z.string().min(1, '缺少收據號碼').max(100),
-  amount: z.number().min(0),
-  receiptDate: z.string().min(1, '缺少收據日期'),
+  recipientName: z.string().min(1, '收件人必填').max(100),
+  serviceStartDate: z.string().min(1, '服務起始日必填'),
+  serviceEndDate: z.string().min(1, '服務結束日必填'),
+  serviceDays: z.number().min(0).default(0),
+  serviceAmount: z.number().min(0).default(0),
+  transportationFee: z.number().min(0).default(0),
+  totalAmount: z.number().min(0).default(0),
+  dispatchCompany: z.string().max(200).default('達心特護'),
+  receiptDate: z.string().min(1, '收據日期必填'),
   note: z.string().max(500).default(''),
+  serviceLocation: z.string().max(200).default(''),
 });
 
 export const updateReceiptSchema = createReceiptSchema.partial().extend({
   id: z.string().min(1, '缺少 ID'),
 });
+
+// ─── Modification Requests ───
+export const reviewModificationSchema = z.object({
+  id: z.string().min(1, '缺少 ID'),
+  action: z.enum(['approved', 'rejected'], { message: '操作必須是 approved 或 rejected' }),
+});
+
+// ─── Image Upload Validation ───
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const MAGIC_BYTES: Record<string, number[]> = {
+  'image/jpeg': [0xFF, 0xD8, 0xFF],
+  'image/png': [0x89, 0x50, 0x4E, 0x47],
+  'image/gif': [0x47, 0x49, 0x46],
+  'image/webp': [0x52, 0x49, 0x46, 0x46], // RIFF header
+};
+
+export function validateImageFile(file: File): { valid: boolean; error?: string } {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return { valid: false, error: `不支援的檔案類型: ${file.type}，僅接受 JPG/PNG/WebP/GIF` };
+  }
+  if (file.size > 4 * 1024 * 1024) {
+    return { valid: false, error: '檔案大小超過 4MB 上限' };
+  }
+  return { valid: true };
+}
+
+export async function validateImageBytes(buffer: ArrayBuffer): Promise<{ valid: boolean; error?: string }> {
+  const bytes = new Uint8Array(buffer).slice(0, 8);
+  const isValidMagic = Object.values(MAGIC_BYTES).some(magic =>
+    magic.every((b, i) => bytes[i] === b)
+  );
+  if (!isValidMagic) {
+    return { valid: false, error: '檔案內容非有效圖片格式' };
+  }
+  return { valid: true };
+}
 
 /** Parse body with a zod schema; returns parsed data or null + error message */
 export function parseBody<T>(schema: z.ZodSchema<T>, body: unknown): { data: T; error: null } | { data: null; error: string } {

@@ -42,11 +42,10 @@ let memoryDB: DB | null = null;
 function getInitialData(): DB {
   return {
     organizations: [{ id: 'org1', code: 'ZSB', name: '達信護理' }],
+    // Passwords are bcrypt-hashed. Never store plaintext passwords.
     users: [
-      { id: 'admin1', orgId: 'org1', name: '管理員', account: 'A123', password: '9123', role: 'admin', hourlyRate: 0 },
-      { id: 'emp1', orgId: 'org1', name: '特護測試', account: 'L123', password: '9123', role: 'employee', hourlyRate: 200 },
-      { id: 'emp2', orgId: 'org1', name: '郭語', account: 'G001', password: '1234', role: 'employee', hourlyRate: 200 },
-      { id: 'emp3', orgId: 'org1', name: '陳俞均', account: 'C001', password: '1234', role: 'employee', hourlyRate: 220 },
+      { id: 'admin1', orgId: 'org1', name: '管理員', account: 'A123', password: '$2a$10$DEV.SEED.ONLY.DO.NOT.USE.IN.PRODUCTION.HASHED', role: 'admin', hourlyRate: 0 },
+      { id: 'emp1', orgId: 'org1', name: '特護測試', account: 'L123', password: '$2a$10$DEV.SEED.ONLY.DO.NOT.USE.IN.PRODUCTION.HASHED', role: 'employee', hourlyRate: 200 },
     ],
     cases: [
       { id: 'case1', orgId: 'org1', name: '中山區寶寶', code: 'ZSBB', caseType: '主要地區', settlementType: '週', remoteSubsidy: false },
@@ -909,13 +908,15 @@ export async function updateAdvanceExpenseStatus(id: string, status: 'approved' 
   return db.advanceExpenses[idx];
 }
 
-export async function deleteAdvanceExpense(id: string): Promise<boolean> {
+export async function deleteAdvanceExpense(id: string, orgId?: string): Promise<boolean> {
   if (isSupabase) {
-    const { error } = await supabase.from('advance_expenses').delete().eq('id', id);
+    let q = supabase.from('advance_expenses').delete().eq('id', id);
+    if (orgId) q = q.eq('org_id', orgId);
+    const { error } = await q;
     return !error;
   }
   const db = readDB();
-  const idx = (db.advanceExpenses || []).findIndex(r => r.id === id);
+  const idx = (db.advanceExpenses || []).findIndex(r => r.id === id && (!orgId || r.orgId === orgId));
   if (idx === -1) return false;
   db.advanceExpenses.splice(idx, 1);
   writeDB(db);
