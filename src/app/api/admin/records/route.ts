@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getClockRecords, enrichRecords, createClockRecord, updateClockRecord, deleteClockRecord, getRateSettings, getSpecialConditions } from '@/lib/db';
-import { paginate, calculateSalary, getSpecialMultiplier, calculateNurseSalary } from '@/lib/utils';
+import { getClockRecordsPaginated, enrichRecords, createClockRecord, updateClockRecord, deleteClockRecord } from '@/lib/db';
+import { createRecordSchema, updateRecordSchema, parseBody } from '@/lib/validation';
 
 export async function GET(request: Request) {
   try {
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '10');
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20'), 1), 100);
 
     const filters: Record<string, string | undefined> = {};
     const startTime = searchParams.get('startTime');
@@ -31,29 +31,15 @@ export async function GET(request: Request) {
     if (userName) filters.userName = userName;
     if (clockType) (filters as Record<string, string>).clockType = clockType;
 
-    const records = await getClockRecords(session.orgId, filters);
-    const enriched = await enrichRecords(records);
+    // True server-side pagination — only fetch the requested page
+    const result = await getClockRecordsPaginated(session.orgId, page, pageSize, filters);
+    const enriched = await enrichRecords(result.data);
 
-    // 取得費率和特殊狀況，自動計算薪資
-    const allRates = await getRateSettings(session.orgId);
-    const latestRate = allRates.sort((a, b) =>
-      new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime()
-    )[0];
-    const specialConditions = await getSpecialConditions(session.orgId);
+    const withSalary = enriched.map(r => ({
+      ...r, calculatedSalary: r.billing, multiplier: 1,
+    }));
 
-    const dayRate = latestRate?.mainDayRate ?? 490;
-    const nightRate = latestRate?.mainNightRate ?? 530;
-
-    const withSalary = enriched.map(r => {
-      const multiplier = getSpecialMultiplier(r.clockInTime, r.clockOutTime, specialConditions);
-      const billing = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
-      const nurseSalary = calculateNurseSalary(billing);
-      return { ...r, calculatedSalary: billing, billing, nurseSalary, multiplier };
-    });
-
-    const result = paginate(withSalary, page, pageSize);
-
-    return NextResponse.json(result);
+    return NextResponse.json({ data: withSalary, total: result.total, totalPages: result.totalPages });
   } catch (err) {
     console.error('Admin records GET error:', err);
     return NextResponse.json({ error: '系統錯誤' }, { status: 500 });
@@ -68,19 +54,29 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    const parsed = parseBody(createRecordSchema, body);
+    if (!parsed.data) return NextResponse.json({ error: parsed.error }, { status: 400 });
+
     const record = await createClockRecord({
       orgId: session.orgId,
-      userId: body.userId,
-      caseId: body.caseId,
-      clockInTime: body.clockInTime || null,
-      clockInLat: body.clockInLat || null,
-      clockInLng: body.clockInLng || null,
-      clockOutTime: body.clockOutTime || null,
-      clockOutLat: body.clockOutLat || null,
-      clockOutLng: body.clockOutLng || null,
-      salary: body.salary || 0,
+      ...parsed.data,
       paidAt: null,
+      billing: 0, nurseSalary: 0, dayHours: 0, nightHours: 0,
     });
+
+    // 有下班時間 → 計算 billing
+    if (record.clockOutTime) {
+      try {
+        const { computeBillingForRecord } = await import('@/lib/billing');
+        const result = await computeBillingForRecord(record);
+        const updated = await updateClockRecord(record.id, {
+          billing: result.billing, nurseSalary: result.nurseSalary,
+          dayHours: result.dayHours, nightHours: result.nightHours,
+          salary: result.billing,
+        });
+        return NextResponse.json(updated);
+      } catch { /* billing 計算失敗不影響建立 */ }
+    }
 
     return NextResponse.json(record);
   } catch (err) {
@@ -97,11 +93,27 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { id, ...data } = body;
-    const updated = await updateClockRecord(id, data);
+    const parsed = parseBody(updateRecordSchema, body);
+    if (!parsed.data) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    const { id, ...data } = parsed.data;
+    let updated = await updateClockRecord(id, data, session.orgId);
     if (!updated) {
       return NextResponse.json({ error: '找不到紀錄' }, { status: 404 });
     }
+
+    // 若修改了影響 billing 的欄位 → 重算
+    const billingFields = ['clockInTime', 'clockOutTime', 'salary', 'caseId'] as const;
+    if (billingFields.some(k => (data as Record<string, unknown>)[k] !== undefined) && updated.clockOutTime) {
+      try {
+        const { computeBillingForRecord } = await import('@/lib/billing');
+        const result = await computeBillingForRecord(updated);
+        updated = (await updateClockRecord(id, {
+          billing: result.billing, nurseSalary: result.nurseSalary,
+          dayHours: result.dayHours, nightHours: result.nightHours,
+        })) || updated;
+      } catch { /* billing 計算失敗不影響更新 */ }
+    }
+
     return NextResponse.json(updated);
   } catch (err) {
     console.error('Admin records PUT error:', err);
@@ -122,7 +134,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: '缺少 ID' }, { status: 400 });
     }
 
-    await deleteClockRecord(id);
+    await deleteClockRecord(id, session.orgId);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Admin records DELETE error:', err);

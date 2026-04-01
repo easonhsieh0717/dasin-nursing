@@ -56,7 +56,7 @@ export async function PUT(request: Request) {
 
     const body = await request.json();
     const { id, ...data } = body;
-    const updated = await updateRateSettings(id, data);
+    const updated = await updateRateSettings(id, data, session.orgId);
     if (!updated) {
       return NextResponse.json({ error: '找不到設定' }, { status: 404 });
     }
@@ -78,7 +78,7 @@ export async function DELETE(request: Request) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: '缺少 ID' }, { status: 400 });
 
-    await deleteRateSettings(id);
+    await deleteRateSettings(id, session.orgId);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Settings DELETE error:', err);

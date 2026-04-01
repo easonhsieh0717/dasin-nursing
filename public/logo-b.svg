@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- Style B: 線條醫護 — 清晰手掌輪廓 -->
+  <circle cx="60" cy="60" r="56" fill="#fdf8f6" stroke="#f0ddd8" stroke-width="1.5"/>
+
+  <!-- Left hand silhouette -->
+  <path d="M22 62 C24 54 30 48 38 48 C42 48 46 50 48 54 L50 62 L48 70 C44 78 36 84 28 82 C22 80 18 74 18 68 Z"
+        fill="#d4a090" opacity="0.85"/>
+  <!-- Left thumb -->
+  <path d="M38 48 L42 40 C43 38 46 38 46 42 L48 54"
+        fill="#d4a090" opacity="0.85"/>
+
+  <!-- Right hand silhouette -->
+  <path d="M98 62 C96 54 90 48 82 48 C78 48 74 50 72 54 L70 62 L72 70 C76 78 84 84 92 82 C98 80 102 74 102 68 Z"
+        fill="#e0b5a8" opacity="0.85"/>
+  <!-- Right thumb -->
+  <path d="M82 48 L78 40 C77 38 74 38 74 42 L72 54"
+        fill="#e0b5a8" opacity="0.85"/>
+
+  <!-- Heart -->
+  <path d="M60 80 C60 80 36 63 36 49 C36 41 42 35 50 35 C55 35 58 38 60 41 C62 38 65 35 70 35 C78 35 84 41 84 49 C84 63 60 80 60 80Z"
+        fill="#e8776f" stroke="#d4635b" stroke-width="1"/>
+  <!-- Heart shine -->
+  <ellipse cx="51" cy="46" rx="4" ry="6" fill="white" opacity="0.3" transform="rotate(-15 51 46)"/>
+
+  <!-- Small plus (medical) -->
+  <rect x="56" y="90" width="8" height="14" rx="2" fill="#e8776f" opacity="0.35"/>
+  <rect x="53" y="93" width="14" height="8" rx="2" fill="#e8776f" opacity="0.35"/>
+</svg>

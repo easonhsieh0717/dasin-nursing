@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- Style D: 極簡大器 — 無背景圓，手掌清晰 -->
+  <defs>
+    <linearGradient id="hg" x1="40%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#f09090"/>
+      <stop offset="100%" stop-color="#e8776f"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Left hand -->
+  <path d="M14 62 C16 52 26 44 36 44 C42 44 48 48 50 54 L54 66 C52 76 42 86 30 86 C20 86 12 78 12 68 Z"
+        fill="#d4a090"/>
+  <!-- Left thumb & fingers -->
+  <path d="M32 44 C33 36 37 34 40 36 L44 48" fill="#d4a090"/>
+  <path d="M26 46 C26 40 29 38 32 40" fill="none" stroke="#c49088" stroke-width="2" stroke-linecap="round"/>
+  <path d="M20 50 C20 44 23 42 26 44" fill="none" stroke="#c49088" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Right hand -->
+  <path d="M106 62 C104 52 94 44 84 44 C78 44 72 48 70 54 L66 66 C68 76 78 86 90 86 C100 86 108 78 108 68 Z"
+        fill="#e0b5a8"/>
+  <!-- Right thumb & fingers -->
+  <path d="M88 44 C87 36 83 34 80 36 L76 48" fill="#e0b5a8"/>
+  <path d="M94 46 C94 40 91 38 88 40" fill="none" stroke="#d4a59a" stroke-width="2" stroke-linecap="round"/>
+  <path d="M100 50 C100 44 97 42 94 44" fill="none" stroke="#d4a59a" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Heart -->
+  <path d="M60 84 C60 84 30 62 30 46 C30 35 38 28 48 28 C54 28 58 32 60 36 C62 32 66 28 72 28 C82 28 90 35 90 46 C90 62 60 84 60 84Z"
+        fill="url(#hg)"/>
+  <!-- Heart shine -->
+  <ellipse cx="48" cy="40" rx="6" ry="8" fill="white" opacity="0.2" transform="rotate(-15 48 40)"/>
+</svg>

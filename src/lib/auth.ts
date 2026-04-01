@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 
 const jwtSecret = process.env.JWT_SECRET;
 if (!jwtSecret && process.env.NODE_ENV === 'production') {
-  console.error('FATAL: JWT_SECRET environment variable is not set!');
+  throw new Error('FATAL: JWT_SECRET environment variable is not set! Refusing to start in production without a secure secret.');
 }
 const SECRET = new TextEncoder().encode(jwtSecret || 'dev-only-secret-do-not-use-in-production');
 

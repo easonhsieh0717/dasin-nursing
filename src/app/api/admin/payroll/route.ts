@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getClockRecords, enrichRecords, getRateSettings, getSpecialConditions, getUsers } from '@/lib/db';
-import { calculateSalary, getSpecialMultiplier, calculateNurseSalary } from '@/lib/utils';
+import { getClockRecords, enrichRecords, getUsers, getAdvanceExpenses, getCases } from '@/lib/db';
 
 export async function GET(request: Request) {
   try {
@@ -11,39 +10,47 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
+    const caseId = searchParams.get('caseId');
     const startTime = searchParams.get('startTime') || undefined;
     const endTime = searchParams.get('endTime') || undefined;
 
-    const filters: Record<string, string | undefined> = {};
+    if (!caseId) {
+      return NextResponse.json({ error: '請先選擇個案' }, { status: 400 });
+    }
+
+    const filters: Record<string, string | boolean | undefined> = { caseId, fetchAll: true };
     if (startTime) filters.startTime = startTime;
     if (endTime) filters.endTime = endTime;
 
     const records = await getClockRecords(session.orgId, filters);
     const enriched = await enrichRecords(records);
 
-    // 取得費率和特殊狀況
-    const allRates = await getRateSettings(session.orgId);
-    const latestRate = allRates.sort((a, b) =>
-      new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime()
-    )[0];
-    const specialConditions = await getSpecialConditions(session.orgId);
-    const dayRate = latestRate?.mainDayRate ?? 490;
-    const nightRate = latestRate?.mainNightRate ?? 530;
-
     // 取得所有特護（含銀行資訊）
     const { users } = await getUsers(session.orgId);
     const userMap = new Map(users.map(u => [u.id, u]));
 
-    // 計算每筆請款金額和特護薪資
-    const computed = enriched.map(r => {
-      const multiplier = getSpecialMultiplier(r.clockInTime, r.clockOutTime, specialConditions);
-      const billing = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
-      const nurseSalary = calculateNurseSalary(billing);
-      return { ...r, billing, nurseSalary, multiplier };
-    });
+    // 取得個案資訊
+    const allCases = await getCases(session.orgId);
+    const targetCase = allCases.find(c => c.id === caseId);
+    const caseName = targetCase?.name || '未知';
+
+    // 使用預算值
+    const computed = enriched;
+
+    // 查詢期間已核准的代墊費用（限定個案）
+    const expenseFilters: Record<string, string> = { status: 'approved', caseId };
+    if (startTime) expenseFilters.startDate = startTime;
+    if (endTime) expenseFilters.endDate = endTime;
+    const approvedExpenses = await getAdvanceExpenses(session.orgId, expenseFilters);
+
+    // 按特護彙總代墊費用
+    const expenseByUser = new Map<string, number>();
+    for (const exp of approvedExpenses) {
+      expenseByUser.set(exp.userId, (expenseByUser.get(exp.userId) || 0) + exp.amount);
+    }
 
     // 按特護彙總
-    const summaryMap = new Map<string, { name: string; userId: string; totalBilling: number; totalSalary: number; shifts: number; bank: string; accountNo: string; accountName: string; isPostOffice: boolean; caseNames: Set<string>; note: string }>();
+    const summaryMap = new Map<string, { name: string; userId: string; totalBilling: number; totalSalary: number; shifts: number; bank: string; accountNo: string; accountName: string; isPostOffice: boolean; caseNames: Set<string>; note: string; advanceExpenseTotal: number }>();
 
     for (const r of computed) {
       const existing = summaryMap.get(r.userId);
@@ -66,16 +73,26 @@ export async function GET(request: Request) {
           isPostOffice: (user?.bank || '').includes('郵局') || (user?.bank || '').includes('郵政'),
           caseNames: new Set([r.caseName]),
           note: user?.note || '',
+          advanceExpenseTotal: 0,
         });
+      }
+    }
+
+    // 帶入代墊費用
+    for (const [userId, expTotal] of expenseByUser) {
+      const existing = summaryMap.get(userId);
+      if (existing) {
+        existing.advanceExpenseTotal = expTotal;
       }
     }
 
     const summary = Array.from(summaryMap.values()).map(s => ({
       ...s,
-      caseNames: [...s.caseNames], // Set → Array for JSON serialization
+      caseNames: [...s.caseNames],
     }));
     const totalAmount = summary.reduce((sum, s) => sum + s.totalSalary, 0);
     const totalBilling = summary.reduce((sum, s) => sum + s.totalBilling, 0);
+    const totalAdvanceExpenses = summary.reduce((sum, s) => sum + s.advanceExpenseTotal, 0);
     const postOfficeItems = summary.filter(s => s.isPostOffice);
     const bankItems = summary.filter(s => !s.isPostOffice);
 
@@ -85,9 +102,11 @@ export async function GET(request: Request) {
     const unpaidCount = records.length - paidCount;
 
     return NextResponse.json({
+      caseName,
       summary,
       totalAmount,
       totalBilling,
+      totalAdvanceExpenses,
       postOfficeCount: postOfficeItems.length,
       postOfficeAmount: postOfficeItems.reduce((sum, s) => sum + s.totalSalary, 0),
       bankCount: bankItems.length,

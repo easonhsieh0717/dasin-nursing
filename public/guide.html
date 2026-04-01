@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>達心特護打卡系統 — 操作手冊</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --primary: #e8776f;
+    --primary-light: #fce8e4;
+    --primary-border: #f0ddd8;
+    --success: #5dab68;
+    --danger: #d9534f;
+    --warning: #e8a54b;
+    --text: #4a3733;
+    --text-secondary: #8b7b76;
+    --text-muted: #b0a09a;
+    --bg-start: #fdf8f6;
+    --bg-end: #fce8e4;
+    --card-bg: #ffffff;
+  }
+
+  body {
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    background: linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%);
+    background-attachment: fixed;
+    color: var(--text);
+    line-height: 1.8;
+    padding: 0;
+  }
+
+  /* ── 封面 ── */
+  .cover {
+    text-align: center;
+    padding: 60px 20px 40px;
+    background: linear-gradient(135deg, #fdf8f6 0%, #fce8e4 50%, #f8d4ce 100%);
+    border-bottom: 3px solid var(--primary-border);
+  }
+  .cover-icon {
+    font-size: 72px;
+    margin-bottom: 16px;
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .cover h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 8px;
+  }
+  .cover .subtitle {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .cover .version {
+    display: inline-block;
+    background: var(--primary);
+    color: #fff;
+    padding: 4px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  /* ── 主容器 ── */
+  .container {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+  }
+
+  /* ── 目錄 ── */
+  .toc {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 32px;
+    box-shadow: 0 2px 12px rgba(180,120,100,0.08);
+    border: 1px solid var(--primary-border);
+  }
+  .toc h2 {
+    font-size: 18px;
+    color: var(--primary);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary-light);
+  }
+  .toc ol {
+    padding-left: 24px;
+  }
+  .toc li {
+    margin-bottom: 6px;
+  }
+  .toc a {
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+  }
+  .toc a:hover {
+    color: var(--primary);
+  }
+  .toc .sub-list {
+    padding-left: 20px;
+    margin-top: 4px;
+  }
+  .toc .sub-list li {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 3px;
+  }
+
+  /* ── 章節 ── */
+  .section {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 28px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 12px rgba(180,120,100,0.08);
+    border: 1px solid var(--primary-border);
+  }
+  .section h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--primary-light);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section h2 .emoji {
+    font-size: 26px;
+  }
+  .section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 20px 0 10px;
+    padding-left: 12px;
+    border-left: 3px solid var(--primary);
+  }
+
+  /* ── 步驟 ── */
+  .step {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 20px;
+    align-items: flex-start;
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .step-content {
+    flex: 1;
+    padding-top: 4px;
+  }
+  .step-content strong {
+    color: var(--text);
+  }
+  .step-content p {
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+
+  /* ── UI 模擬圖 ── */
+  .mockup {
+    background: #fafafa;
+    border: 2px solid var(--primary-border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin: 16px 0;
+    max-width: 380px;
+  }
+  .mockup.wide {
+    max-width: 100%;
+  }
+  .mockup-header {
+    background: linear-gradient(135deg, var(--primary-light), #fdf5f3);
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--primary-border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .mockup-header .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--primary); opacity: 0.4;
+  }
+  .mockup-body {
+    padding: 16px;
+  }
+
+  /* 模擬畫面內元素 */
+  .mock-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .mock-time {
+    font-size: 40px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: center;
+    font-family: monospace;
+    letter-spacing: 2px;
+  }
+  .mock-date {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .mock-case-box {
+    background: var(--primary-light);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .mock-case-box .name {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .mock-case-box .code {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .mock-btn-row {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin: 16px 0;
+  }
+  .mock-btn-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  }
+  .mock-btn-circle.green { background: linear-gradient(135deg, #5dab68, #4d9a58); }
+  .mock-btn-circle.red { background: linear-gradient(135deg, #d9534f, #c9433f); }
+  .mock-btn-circle.disabled { opacity: 0.3; }
+
+  .mock-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--primary-border);
+    border-radius: 10px;
+    font-size: 14px;
+    color: var(--text);
+    background: #fff;
+    margin-bottom: 10px;
+  }
+  .mock-input-with-icon {
+    position: relative;
+    margin-bottom: 10px;
+  }
+  .mock-input-with-icon .icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 16px;
+  }
+  .mock-input-with-icon input {
+    width: 100%;
+    padding: 10px 14px 10px 38px;
+    border: 1px solid var(--primary-border);
+    border-radius: 10px;
+    font-size: 14px;
+    color: var(--text);
+    background: #fff;
+  }
+  .mock-submit {
+    width: 100%;
+    padding: 12px;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    border-radius: 12px;
+    border: none;
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  .mock-nav {
+    display: flex;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--primary-border);
+    padding: 0;
+  }
+  .mock-nav-item {
+    flex: 1;
+    text-align: center;
+    padding: 10px 4px 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    position: relative;
+  }
+  .mock-nav-item.active {
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .mock-nav-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 10%;
+    width: 80%;
+    height: 2px;
+    background: var(--primary);
+    border-radius: 2px;
+  }
+  .mock-nav-item .nav-icon {
+    display: block;
+    font-size: 18px;
+    margin-bottom: 2px;
+  }
+
+  /* ── 提示框 ── */
+  .tip-box {
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 14px 0;
+    font-size: 14px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .tip-box .tip-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .tip-box.info {
+    background: #e8f4fd;
+    border: 1px solid #b8d9f0;
+    color: #2c6e9b;
+  }
+  .tip-box.warning {
+    background: #fef6e8;
+    border: 1px solid #f0d9a8;
+    color: #8b6914;
+  }
+  .tip-box.danger {
+    background: #fce8e8;
+    border: 1px solid #f0b8b8;
+    color: #9b2c2c;
+  }
+  .tip-box.success {
+    background: #e8f5ea;
+    border: 1px solid #b8e0be;
+    color: #2c6e36;
+  }
+
+  /* ── 表格 ── */
+  .info-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  .info-table th {
+    background: var(--primary-light);
+    color: #8b5550;
+    padding: 8px 12px;
+    text-align: left;
+    border: 1px solid var(--primary-border);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .info-table td {
+    padding: 8px 12px;
+    border: 1px solid var(--primary-border);
+    color: var(--text);
+  }
+  .info-table tr:hover {
+    background: #fdf5f3;
+  }
+
+  /* ── 流程圖 ── */
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin: 16px 0;
+    align-items: center;
+  }
+  .flow-step {
+    background: var(--primary-light);
+    border: 1px solid var(--primary-border);
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    text-align: center;
+    min-width: 80px;
+  }
+  .flow-step.highlight {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+  .flow-arrow {
+    font-size: 20px;
+    color: var(--primary);
+    font-weight: 700;
+  }
+
+  /* ── 狀態標籤 ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge-pending { background: #f0e6e4; color: #8b7b76; }
+  .badge-approved { background: #e8f5ea; color: #3d7a47; }
+  .badge-rejected { background: #fce8e8; color: #b5403d; }
+
+  /* ── 圖說標注 ── */
+  .annotation {
+    position: relative;
+    margin: 12px 0;
+  }
+  .callout {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    color: #664d03;
+    margin: 4px 0;
+  }
+  .callout::before {
+    content: '👉';
+  }
+
+  /* ── 編號圓 ── */
+  .num-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* ── 清單 ── */
+  ul.check-list {
+    list-style: none;
+    padding: 0;
+  }
+  ul.check-list li {
+    padding: 6px 0;
+    padding-left: 28px;
+    position: relative;
+    font-size: 14px;
+  }
+  ul.check-list li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--success);
+    font-weight: 700;
+    font-size: 16px;
+  }
+
+  ul.x-list {
+    list-style: none;
+    padding: 0;
+  }
+  ul.x-list li {
+    padding: 6px 0;
+    padding-left: 28px;
+    position: relative;
+    font-size: 14px;
+  }
+  ul.x-list li::before {
+    content: '✗';
+    position: absolute;
+    left: 2px;
+    color: var(--danger);
+    font-weight: 700;
+    font-size: 16px;
+  }
+
+  /* 分隔線 */
+  .divider {
+    border: none;
+    border-top: 2px dashed var(--primary-border);
+    margin: 24px 0;
+  }
+
+  /* ── 頁尾 ── */
+  .footer {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  /* ── 響應式 ── */
+  @media (max-width: 600px) {
+    .cover h1 { font-size: 22px; }
+    .section { padding: 20px 16px; }
+    .section h2 { font-size: 17px; }
+    .mock-btn-circle { width: 80px; height: 80px; font-size: 15px; }
+    .flow { flex-direction: column; align-items: center; }
+    .flow-arrow { transform: rotate(90deg); }
+  }
+
+  /* 列印 */
+  @media print {
+    body { background: #fff; }
+    .cover { background: #fff; border-bottom: 2px solid #eee; }
+    .section { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
+    .mockup { border: 1px solid #ccc; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════
+     封面
+     ════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-icon"><img src="/logo.png" alt="達心" style="width: 80px; height: 80px; object-fit: contain; border-radius: 16px;"></div>
+  <h1>達心特護打卡系統</h1>
+  <p class="subtitle">特護人員操作手冊</p>
+  <span class="version">v4.16 · 2026 年 4 月更新</span>
+</div>
+
+<div class="container">
+
+<!-- ════════════════════════════════════════════
+     目錄
+     ════════════════════════════════════════════ -->
+<div class="toc">
+  <h2>📋 目錄</h2>
+  <ol>
+    <li><a href="#login">登入系統</a></li>
+    <li><a href="#nav">頁面導覽</a></li>
+    <li>
+      <a href="#clock">打卡操作（上班 / 下班）</a>
+      <ul class="sub-list">
+        <li>上班打卡流程</li>
+        <li>下班打卡流程</li>
+        <li>定位說明</li>
+      </ul>
+    </li>
+    <li>
+      <a href="#salary">薪資計算方式</a>
+      <ul class="sub-list">
+        <li>計費費率</li>
+        <li>計時單位</li>
+        <li>特殊倍率（過年、颱風）</li>
+        <li>計算範例</li>
+      </ul>
+    </li>
+    <li>
+      <a href="#records">查看打卡紀錄</a>
+    </li>
+    <li>
+      <a href="#modify">申請修改打卡時間</a>
+      <ul class="sub-list">
+        <li>什麼情況需要申請修改</li>
+        <li>修改申請流程</li>
+        <li>審核狀態說明</li>
+      </ul>
+    </li>
+    <li>
+      <a href="#delete">申請刪除打卡紀錄</a>
+      <ul class="sub-list">
+        <li>什麼情況需要申請刪除</li>
+        <li>刪除申請流程</li>
+      </ul>
+    </li>
+    <li>
+      <a href="#expenses">代墊費用申請</a>
+    </li>
+    <li>
+      <a href="#faq">常見問題 FAQ</a>
+    </li>
+    <li>
+      <a href="#notice">重要注意事項</a>
+    </li>
+  </ol>
+</div>
+
+<!-- ════════════════════════════════════════════
+     1. 登入系統
+     ════════════════════════════════════════════ -->
+<div class="section" id="login">
+  <h2><span class="emoji">🔐</span> 一、登入系統</h2>
+
+  <p>打開瀏覽器，前往打卡系統網址，會看到以下登入畫面：</p>
+
+  <!-- 模擬登入畫面 -->
+  <div class="mockup" style="margin: 16px auto;">
+    <div class="mockup-header"><span class="dot"></span><span class="dot"></span><span class="dot"></span> 達心特護打卡系統</div>
+    <div class="mockup-body" style="text-align: center;">
+      <div style="margin-bottom: 4px;"><img src="/logo.png" alt="達心" style="width: 48px; height: 48px; object-fit: contain; border-radius: 12px;"></div>
+      <div class="mock-title" style="color: var(--primary);">達心特護打卡系統</div>
+      <div class="mock-input-with-icon">
+        <span class="icon">#</span>
+        <input type="text" placeholder="代碼（例：ZSB）" readonly style="width: 100%; padding: 10px 14px 10px 38px; border: 1px solid var(--primary-border); border-radius: 10px; font-size: 14px;">
+      </div>
+      <div class="mock-input-with-icon">
+        <span class="icon">👤</span>
+        <input type="text" placeholder="帳號" readonly style="width: 100%; padding: 10px 14px 10px 38px; border: 1px solid var(--primary-border); border-radius: 10px; font-size: 14px;">
+      </div>
+      <div class="mock-input-with-icon">
+        <span class="icon">🔒</span>
+        <input type="password" placeholder="密碼" readonly style="width: 100%; padding: 10px 14px 10px 38px; border: 1px solid var(--primary-border); border-radius: 10px; font-size: 14px;">
+      </div>
+      <div class="mock-submit" style="margin-top: 12px;">🔑 登入</div>
+    </div>
+  </div>
+
+  <h3>登入欄位說明</h3>
+  <table class="info-table">
+    <tr><th>欄位</th><th>說明</th><th>範例</th></tr>
+    <tr><td><strong>代碼</strong></td><td>公司提供的組織代碼，<strong>特護必填</strong></td><td>ZSB</td></tr>
+    <tr><td><strong>帳號</strong></td><td>您的登入帳號</td><td>nurse001</td></tr>
+    <tr><td><strong>密碼</strong></td><td>您的登入密碼</td><td>••••••</td></tr>
+  </table>
+
+  <div class="tip-box warning">
+    <span class="tip-icon">⚠️</span>
+    <div>
+      <strong>特護登入必須填寫「代碼」欄位！</strong><br>
+      代碼由公司統一提供，若不清楚請詢問管理員。未填代碼會導致登入失敗。
+    </div>
+  </div>
+
+  <div class="tip-box info">
+    <span class="tip-icon">💡</span>
+    <div>
+      登入成功後會自動跳轉到<strong>打卡頁面</strong>。登入狀態維持 <strong>24 小時</strong>，過期需重新登入。
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     2. 頁面導覽
+     ════════════════════════════════════════════ -->
+<div class="section" id="nav">
+  <h2><span class="emoji">🧭</span> 二、頁面導覽</h2>
+
+  <p>登入後，畫面上方會顯示導覽列，共有 <strong>3 個功能頁面</strong> + 登出按鈕：</p>
+
+  <!-- 模擬導覽列 -->
+  <div class="mockup wide" style="margin: 16px auto; max-width: 400px;">
+    <div class="mockup-body" style="padding: 0;">
+      <div class="mock-nav">
+        <div class="mock-nav-item active">
+          <span class="nav-icon">⏰</span>
+          打卡
+        </div>
+        <div class="mock-nav-item">
+          <span class="nav-icon">📋</span>
+          紀錄
+        </div>
+        <div class="mock-nav-item">
+          <span class="nav-icon">💰</span>
+          代墊費用
+        </div>
+        <div class="mock-nav-item">
+          <span class="nav-icon">🚪</span>
+          登出
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <table class="info-table">
+    <tr><th>頁面</th><th>圖示</th><th>功能說明</th></tr>
+    <tr><td><strong>打卡</strong></td><td>⏰</td><td>上班、下班打卡</td></tr>
+    <tr><td><strong>紀錄</strong></td><td>📋</td><td>查看打卡紀錄、申請修改或刪除</td></tr>
+    <tr><td><strong>代墊費用</strong></td><td>💰</td><td>申請報銷餐費、車資等費用</td></tr>
+    <tr><td><strong>登出</strong></td><td>🚪</td><td>登出系統</td></tr>
+  </table>
+
+  <div class="tip-box info">
+    <span class="tip-icon">💡</span>
+    <div>目前所在頁面會以<span style="color: var(--primary); font-weight: 600;">珊瑚色</span>高亮顯示，下方有一條底線動畫。</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     3. 打卡操作
+     ════════════════════════════════════════════ -->
+<div class="section" id="clock">
+  <h2><span class="emoji">⏰</span> 三、打卡操作（上班 / 下班）</h2>
+
+  <p>打卡頁面是您最常使用的頁面，畫面如下：</p>
+
+  <!-- 模擬打卡頁面 -->
+  <div class="mockup" style="margin: 16px auto;">
+    <div class="mockup-header"><span class="dot"></span><span class="dot"></span><span class="dot"></span> 打卡</div>
+    <div class="mockup-body">
+      <div class="mock-time">14:30:25</div>
+      <div class="mock-date">2026/04/01（二）</div>
+
+      <div class="mock-case-box">
+        <div class="name">王大明</div>
+        <div class="code">個案代碼：A001</div>
+      </div>
+
+      <div class="mock-btn-row">
+        <div class="mock-btn-circle green">上班</div>
+        <div class="mock-btn-circle red disabled">下班</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>畫面元素說明</h3>
+  <table class="info-table">
+    <tr><th>區域</th><th>說明</th></tr>
+    <tr><td><strong>即時時鐘</strong></td><td>顯示目前時間（時:分:秒），每秒更新</td></tr>
+    <tr><td><strong>日期</strong></td><td>顯示今天日期與星期幾</td></tr>
+    <tr><td><strong>個案資訊</strong></td><td>顯示您目前被指派的個案姓名與代碼</td></tr>
+    <tr><td><strong>上班按鈕</strong>（綠色）</td><td>尚未打卡上班時可按，打卡後變半透明</td></tr>
+    <tr><td><strong>下班按鈕</strong>（紅色）</td><td>打卡上班後才可按，未上班時為半透明</td></tr>
+  </table>
+
+  <hr class="divider">
+
+  <h3>🟢 上班打卡流程</h3>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-content">
+      <strong>確認個案資訊正確</strong>
+      <p>畫面中間會顯示您被指派的個案姓名。如果個案資訊有誤，請聯繫管理員調整。</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-content">
+      <strong>按下綠色「上班」按鈕</strong>
+      <p>系統會自動抓取您的 GPS 定位。</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-content">
+      <strong>允許定位權限</strong>
+      <p>手機會彈出「是否允許取得位置」的提示，請點選<strong>「允許」</strong>。定位用於記錄打卡地點，供管理員查核。</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-content">
+      <strong>等待打卡成功</strong>
+      <p>畫面會顯示「正在取得位置並打卡中...」，成功後會出現<span style="color: var(--success); font-weight: 600;">綠色提示</span>：「上班打卡成功！」並顯示打卡時間。</p>
+    </div>
+  </div>
+
+  <!-- 打卡成功示意 -->
+  <div class="mockup" style="margin: 16px auto;">
+    <div class="mockup-body">
+      <div style="background: #e8f5ea; border: 1px solid #b8e0be; border-radius: 12px; padding: 12px; text-align: center; color: #2c6e36; font-size: 14px; font-weight: 600;">
+        ✅ 上班打卡成功！<br>
+        <span style="font-size: 12px; font-weight: 400;">2026/04/01 14:30</span>
+      </div>
+      <div style="background: var(--primary-light); border-radius: 12px; padding: 12px; text-align: center; margin-top: 12px;">
+        <div style="font-size: 18px; font-weight: 700; color: var(--primary);">王大明</div>
+        <div style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+          值班中 · 上班 4/1 14:30 · 已 0 小時 0 分鐘
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tip-box success">
+    <span class="tip-icon">✅</span>
+    <div>打卡成功後，畫面會變成「值班中」狀態，顯示上班時間和已值班時數。上班按鈕會變為半透明（不可再按），下班按鈕則會亮起。</div>
+  </div>
+
+  <hr class="divider">
+
+  <h3>🔴 下班打卡流程</h3>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-content">
+      <strong>確認目前處於「值班中」狀態</strong>
+      <p>畫面應顯示紅色個案名稱和值班時間。</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-content">
+      <strong>按下紅色「下班」按鈕</strong>
+      <p>系統同樣會抓取 GPS 定位。</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-content">
+      <strong>等待打卡成功</strong>
+      <p>成功後顯示「下班打卡成功！」，<strong>系統會自動計算本次薪資</strong>。</p>
+    </div>
+  </div>
+
+  <div class="tip-box warning">
+    <span class="tip-icon">⚠️</span>
+    <div>
+      <strong>下班打卡後才會計算薪資！</strong><br>
+      薪資是根據上班到下班的時間差自動計算的。如果忘記下班打卡，系統無法計算，需要申請修改。
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <h3>📍 定位說明</h3>
+  <div class="tip-box info">
+    <span class="tip-icon">📍</span>
+    <div>
+      <strong>為什麼要記錄定位？</strong><br>
+      GPS 定位用於記錄您的打卡地點，管理員可在後台查看地圖位置，作為到班的佐證。<br><br>
+      <strong>如果拒絕定位權限：</strong>打卡仍然可以成功，但不會記錄位置。建議還是開啟定位以避免爭議。
+    </div>
+  </div>
+
+  <h3>完整打卡流程圖</h3>
+  <div class="flow">
+    <div class="flow-step">登入系統</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step">確認個案</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step highlight">按「上班」</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step">允許定位</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: #e8f5ea; border-color: #b8e0be; color: #2c6e36;">✅ 值班中</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step highlight" style="background: var(--danger);">按「下班」</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: #e8f5ea; border-color: #b8e0be; color: #2c6e36;">✅ 計算薪資</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     4. 薪資計算方式
+     ════════════════════════════════════════════ -->
+<div class="section" id="salary">
+  <h2><span class="emoji">💵</span> 四、薪資計算方式</h2>
+
+  <h3>計費費率</h3>
+  <p>費率依照個案所在地區不同而有差異：</p>
+  <table class="info-table">
+    <tr><th>地區</th><th>☀️ 日班時薪</th><th>🌙 夜班時薪</th></tr>
+    <tr>
+      <td><strong>主要地區</strong></td>
+      <td>NT$ 441 / 時</td>
+      <td>NT$ 477 / 時</td>
+    </tr>
+    <tr>
+      <td><strong>其它地區</strong></td>
+      <td>NT$ 495 / 時</td>
+      <td>NT$ 540 / 時</td>
+    </tr>
+  </table>
+
+  <div class="tip-box info">
+    <span class="tip-icon">💡</span>
+    <div>
+      <strong>遠地補助：</strong>若個案設定有「遠地補助」，每次值班額外加 <strong>NT$ 500</strong>。<br>
+      <strong>備註：</strong>實際費率以管理員設定為準，管理員可隨時調整生效日期與金額。
+    </div>
+  </div>
+
+  <h3>計時單位</h3>
+  <div class="tip-box warning">
+    <span class="tip-icon">⏱️</span>
+    <div>
+      <strong>最小計時單位為 0.5 小時（30 分鐘）。</strong><br>
+      系統會以 30 分鐘為單位<strong>無條件捨去</strong>（不是四捨五入）。<br><br>
+      <strong>範例：</strong>
+      <ul style="margin-top: 6px; padding-left: 16px;">
+        <li>工作 2 小時 45 分 → 計為 <strong>2.5 小時</strong>（45分 ÷ 30 = 1.5，取整數 1 → 0.5×1 = 0.5h）</li>
+        <li>工作 3 小時 20 分 → 計為 <strong>3.0 小時</strong>（20分不滿30分，捨去）</li>
+        <li>工作 8 小時 59 分 → 計為 <strong>8.5 小時</strong>（59分 ÷ 30 = 1.96，取整數 1 → 0.5h）</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>特殊倍率</h3>
+  <p>管理員可針對特殊時期設定薪資倍率：</p>
+  <table class="info-table">
+    <tr><th>名稱</th><th>常見倍率</th><th>說明</th></tr>
+    <tr><td>🧧 過年</td><td>2 倍</td><td>農曆年期間，薪資 ×2</td></tr>
+    <tr><td>🌀 颱風</td><td>1.5 ~ 2 倍</td><td>颱風天值班加成</td></tr>
+    <tr><td>⏰ 特殊加班</td><td>依設定</td><td>管理員自訂的加成</td></tr>
+  </table>
+
+  <div class="tip-box success">
+    <span class="tip-icon">💰</span>
+    <div>
+      如果打卡期間適用特殊倍率，您的打卡紀錄會顯示紅色的倍率標記（例如 <strong style="color: var(--danger);">2x</strong>），代表該次薪資已自動乘以倍率。
+    </div>
+  </div>
+
+  <h3>計算範例</h3>
+  <div style="background: #f9f5f3; border-radius: 12px; padding: 16px; margin: 12px 0; font-size: 14px;">
+    <p><strong>情境：</strong>小花在主要地區值班，上班 2026/4/1 22:00，下班 2026/4/2 08:30</p>
+    <table class="info-table" style="margin-top: 8px;">
+      <tr><th>項目</th><th>計算</th><th>結果</th></tr>
+      <tr><td>夜班時數</td><td>22:00 ~ 08:00 = 10hr</td><td>10.0 小時</td></tr>
+      <tr><td>日班時數</td><td>08:00 ~ 08:30 = 30min → 0.5hr</td><td>0.5 小時</td></tr>
+      <tr><td>帳單金額</td><td>(0.5 × 441) + (10 × 477)</td><td>NT$ 4,991</td></tr>
+      <tr><td>特護薪資</td><td>4,991 × 90%</td><td><strong style="color: var(--success);">NT$ 4,492</strong></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     5. 查看打卡紀錄
+     ════════════════════════════════════════════ -->
+<div class="section" id="records">
+  <h2><span class="emoji">📋</span> 五、查看打卡紀錄</h2>
+
+  <p>點選導覽列的「紀錄」，可以查看您所有的打卡紀錄。</p>
+
+  <h3>篩選功能</h3>
+  <p>頁面上方有日期篩選器，可以查詢特定時間範圍的紀錄：</p>
+  <div class="mockup wide" style="margin: 12px auto; max-width: 420px;">
+    <div class="mockup-body" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+      <input type="date" value="2026-03-01" readonly style="padding: 6px 8px; border: 1px solid var(--primary-border); border-radius: 8px; font-size: 13px; flex: 1; min-width: 110px;">
+      <span style="color: var(--text-muted);">~</span>
+      <input type="date" value="2026-03-31" readonly style="padding: 6px 8px; border: 1px solid var(--primary-border); border-radius: 8px; font-size: 13px; flex: 1; min-width: 110px;">
+      <div style="background: var(--primary); color: #fff; padding: 6px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 4px;">🔍 查詢</div>
+    </div>
+  </div>
+
+  <h3>紀錄卡片（手機版）</h3>
+  <p>每一筆打卡紀錄會以卡片形式呈現：</p>
+
+  <div class="mockup" style="margin: 12px auto;">
+    <div class="mockup-body">
+      <!-- 紀錄卡片 1 -->
+      <div style="border: 1px solid var(--primary-border); border-radius: 12px; padding: 12px; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-weight: 700; color: var(--primary); font-size: 15px;">王大明</span>
+          <span class="badge badge-approved">已通過</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">
+          上班：2026/03/15 08:00 📍
+        </div>
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+          下班：2026/03/15 20:15 📍
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span style="font-weight: 700; color: var(--success); font-size: 16px;">NT$ 5,400</span>
+            <span style="font-size: 11px; color: var(--text-muted); margin-left: 4px; font-style: italic;">優秀表現！</span>
+          </div>
+          <div style="display: flex; gap: 4px;">
+            <span style="background: var(--primary); color: #fff; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 600;">申請修改</span>
+            <span style="background: var(--danger); color: #fff; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 600;">申請刪除</span>
+          </div>
+        </div>
+      </div>
+      <!-- 紀錄卡片 2 (值班中) -->
+      <div style="border: 1px solid var(--primary-border); border-radius: 12px; padding: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-weight: 700; color: var(--primary); font-size: 15px;">王大明</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">
+          上班：2026/04/01 14:30 📍
+        </div>
+        <div style="font-size: 12px; color: var(--warning); font-weight: 600; margin-bottom: 8px;">
+          下班：值班中 ⏳
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted);">
+          薪資：下班後自動計算
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>紀錄欄位說明</h3>
+  <table class="info-table">
+    <tr><th>欄位</th><th>說明</th></tr>
+    <tr><td><strong>個案名稱</strong></td><td>值班的個案</td></tr>
+    <tr><td><strong>上班時間</strong></td><td>打卡上班的日期時間（📍 可點擊查看地圖位置）</td></tr>
+    <tr><td><strong>下班時間</strong></td><td>打卡下班的日期時間（若顯示「值班中」表示尚未下班打卡）</td></tr>
+    <tr><td><strong>特護薪資</strong></td><td>本次值班的薪資金額（下班後自動計算）</td></tr>
+    <tr><td><strong>倍率</strong></td><td>若有特殊加成，會顯示紅色倍率（如 <span style="color: var(--danger); font-weight: 700;">2x</span>）</td></tr>
+    <tr><td><strong>操作按鈕</strong></td><td>「申請修改」和「申請刪除」按鈕</td></tr>
+  </table>
+
+  <div class="tip-box info">
+    <span class="tip-icon">📍</span>
+    <div>點擊打卡時間旁的位置圖示，可以在 Google Maps 上查看打卡地點。</div>
+  </div>
+
+  <h3>分頁功能</h3>
+  <p>紀錄以<strong>每頁 10 筆</strong>顯示，底部有分頁按鈕可切換。會顯示「共 X 筆 | 每頁 10 筆」。</p>
+</div>
+
+<!-- ════════════════════════════════════════════
+     6. 申請修改打卡時間
+     ════════════════════════════════════════════ -->
+<div class="section" id="modify">
+  <h2><span class="emoji">✏️</span> 六、申請修改打卡時間</h2>
+
+  <h3>什麼情況需要申請修改？</h3>
+  <ul class="check-list">
+    <li>忘記打卡上班，事後需要補登正確的上班時間</li>
+    <li>忘記打卡下班，需要補登正確的下班時間</li>
+    <li>打卡時間與實際上下班時間有較大差異（例如提早到但晚打卡）</li>
+    <li>系統時間記錄有誤</li>
+    <li>其他需要調整時間的情況</li>
+  </ul>
+
+  <h3>修改申請流程</h3>
+
+  <div class="flow">
+    <div class="flow-step">找到該筆紀錄</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step highlight">按「申請修改」</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step">填寫正確時間</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step">填寫修改原因</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step highlight">送出</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: #f0e6e4;">等待審核</div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-content">
+      <strong>前往「紀錄」頁面，找到需要修改的那筆打卡紀錄</strong>
+      <p>可用日期篩選器縮小範圍。</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-content">
+      <strong>點擊該紀錄的「申請修改」按鈕</strong>
+      <p>會彈出修改申請視窗。</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-content">
+      <strong>在視窗中填寫資料</strong>
+    </div>
+  </div>
+
+  <!-- 修改申請 Modal 模擬 -->
+  <div class="mockup" style="margin: 12px auto;">
+    <div class="mockup-header"><span class="dot"></span><span class="dot"></span><span class="dot"></span> 申請修改打卡時間</div>
+    <div class="mockup-body">
+      <div style="margin-bottom: 10px;">
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">原始上班時間</div>
+        <div style="padding: 8px 12px; background: #f5f0ee; border-radius: 8px; font-size: 13px; color: var(--text-muted);">2026/04/01 08:15</div>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">原始下班時間</div>
+        <div style="padding: 8px 12px; background: #f5f0ee; border-radius: 8px; font-size: 13px; color: var(--text-muted);">2026/04/01 20:30</div>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">建議上班時間 <span style="color: var(--danger);">*</span></div>
+        <input type="text" value="2026/04/01 08:00" readonly class="mock-input" style="margin: 0; border: 2px solid var(--primary);">
+      </div>
+      <div style="margin-bottom: 10px;">
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">建議下班時間 <span style="color: var(--danger);">*</span></div>
+        <input type="text" value="2026/04/01 20:30" readonly class="mock-input" style="margin: 0;">
+      </div>
+      <div style="margin-bottom: 14px;">
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">修改原因 <span style="color: var(--danger);">*（必填）</span></div>
+        <div style="padding: 10px 12px; border: 1px solid var(--primary-border); border-radius: 10px; font-size: 13px; color: var(--text); min-height: 60px; background: #fff;">
+          實際到班時間為 08:00，因手機訊號不佳延遲打卡
+        </div>
+      </div>
+      <div class="mock-submit">送出修改申請</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-content">
+      <strong>填寫完成後，按「送出修改申請」</strong>
+      <p>成功送出後，該筆紀錄會顯示 <span class="badge badge-pending">修改申請中</span> 標籤。</p>
+    </div>
+  </div>
+
+  <div class="tip-box warning">
+    <span class="tip-icon">⚠️</span>
+    <div>
+      <strong>「修改原因」為必填欄位！</strong>請清楚說明為什麼需要修改，以便管理員審核。<br>
+      原因寫得越清楚，審核通過的機率越高。
+    </div>
+  </div>
+
+  <h3>審核狀態說明</h3>
+  <table class="info-table">
+    <tr><th>狀態</th><th>標籤</th><th>說明</th></tr>
+    <tr>
+      <td><span class="badge badge-pending">修改申請中</span></td>
+      <td>待審核</td>
+      <td>已送出申請，等待管理員處理</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-approved">修改已通過</span></td>
+      <td>已通過</td>
+      <td>管理員已批准，打卡時間與薪資已自動更新</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-rejected">修改已拒絕</span></td>
+      <td>已拒絕</td>
+      <td>管理員未通過此申請，時間維持原狀</td>
+    </tr>
+  </table>
+
+  <div class="tip-box success">
+    <span class="tip-icon">✅</span>
+    <div>修改申請通過後，系統會自動重新計算該筆紀錄的日班/夜班時數與薪資，不需要您額外操作。</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     7. 申請刪除打卡紀錄
+     ════════════════════════════════════════════ -->
+<div class="section" id="delete">
+  <h2><span class="emoji">🗑️</span> 七、申請刪除打卡紀錄</h2>
+
+  <h3>什麼情況需要申請刪除？</h3>
+  <ul class="check-list">
+    <li><strong>打錯代碼：</strong>登入時填錯組織代碼，導致打卡到錯誤的帳號下</li>
+    <li><strong>打到錯誤個案：</strong>系統指派的個案有誤，打卡記錄到錯誤的個案</li>
+    <li><strong>重複打卡：</strong>不小心按了兩次上班，產生多餘的紀錄</li>
+    <li><strong>測試打卡：</strong>不小心在非上班時間打了卡</li>
+  </ul>
+
+  <div class="tip-box danger">
+    <span class="tip-icon">🚨</span>
+    <div>
+      <strong>刪除後無法復原！</strong><br>
+      刪除申請一旦通過，該筆打卡紀錄會被<strong>完全移除</strong>，無法恢復。請確認真的需要刪除再提出申請。
+    </div>
+  </div>
+
+  <h3>刪除申請流程</h3>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-content">
+      <strong>前往「紀錄」頁面，找到需要刪除的那筆紀錄</strong>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-content">
+      <strong>點擊「申請刪除」按鈕</strong>
+      <p>會彈出刪除原因視窗。</p>
+    </div>
+  </div>
+
+  <!-- 刪除申請 Modal 模擬 -->
+  <div class="mockup" style="margin: 12px auto;">
+    <div class="mockup-header"><span class="dot"></span><span class="dot"></span><span class="dot"></span> 申請刪除打卡紀錄</div>
+    <div class="mockup-body">
+      <div style="margin-bottom: 10px;">
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">原始上班時間</div>
+        <div style="padding: 8px 12px; background: #f5f0ee; border-radius: 8px; font-size: 13px; color: var(--text-muted);">2026/04/01 08:15</div>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">原始下班時間</div>
+        <div style="padding: 8px 12px; background: #f5f0ee; border-radius: 8px; font-size: 13px; color: var(--text-muted);">2026/04/01 20:30</div>
+      </div>
+      <div style="margin-bottom: 14px;">
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">刪除原因 <span style="color: var(--danger);">*（必填）</span></div>
+        <div style="padding: 10px 12px; border: 1px solid var(--primary-border); border-radius: 10px; font-size: 13px; color: var(--text); min-height: 60px; background: #fff;">
+          打錯代碼，此筆紀錄為誤打，應為另一位同事的帳號
+        </div>
+      </div>
+      <div style="width: 100%; padding: 12px; background: var(--danger); color: #fff; font-weight: 700; font-size: 15px; border-radius: 12px; text-align: center;">送出刪除申請</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-content">
+      <strong>清楚填寫刪除原因，按「送出刪除申請」</strong>
+      <p>該筆紀錄會顯示 <span class="badge badge-pending">刪除申請中</span> 標籤。</p>
+    </div>
+  </div>
+
+  <h3>審核狀態</h3>
+  <table class="info-table">
+    <tr><th>狀態</th><th>說明</th></tr>
+    <tr>
+      <td><span class="badge badge-pending">刪除申請中</span></td>
+      <td>等待管理員審核</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-approved">刪除已通過</span></td>
+      <td>紀錄已被移除</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-rejected">刪除已拒絕</span></td>
+      <td>管理員未同意刪除，紀錄維持</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ════════════════════════════════════════════
+     8. 代墊費用申請
+     ════════════════════════════════════════════ -->
+<div class="section" id="expenses">
+  <h2><span class="emoji">💰</span> 八、代墊費用申請</h2>
+
+  <p>如果值班期間有代墊餐費、車資等費用，可以在「代墊費用」頁面提出報銷申請。</p>
+
+  <h3>申請表單</h3>
+
+  <div class="mockup" style="margin: 12px auto;">
+    <div class="mockup-header"><span class="dot"></span><span class="dot"></span><span class="dot"></span> 申請代墊費用</div>
+    <div class="mockup-body">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+        <div>
+          <div style="font-size: 11px; color: var(--text-secondary);">個案</div>
+          <div style="padding: 6px 10px; background: var(--primary-light); border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--primary);">王大明</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; color: var(--text-secondary);">特護</div>
+          <div style="padding: 6px 10px; background: var(--primary-light); border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--text);">小花</div>
+        </div>
+      </div>
+      <div style="margin-bottom: 8px;">
+        <div style="font-size: 11px; color: var(--text-secondary);">費用類型 *</div>
+        <div style="padding: 8px 10px; border: 1px solid var(--primary-border); border-radius: 8px; font-size: 13px; color: var(--text);">餐費 ▼</div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+        <div>
+          <div style="font-size: 11px; color: var(--text-secondary);">金額 *</div>
+          <div style="padding: 8px 10px; border: 1px solid var(--primary-border); border-radius: 8px; font-size: 13px; color: var(--text-muted);">0</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; color: var(--text-secondary);">費用日期 *</div>
+          <div style="padding: 8px 10px; border: 1px solid var(--primary-border); border-radius: 8px; font-size: 13px; color: var(--text);">2026-04-01</div>
+        </div>
+      </div>
+      <div style="margin-bottom: 8px;">
+        <div style="font-size: 11px; color: var(--text-secondary);">說明（選填）</div>
+        <div style="padding: 8px 10px; border: 1px solid var(--primary-border); border-radius: 8px; font-size: 13px; color: var(--text-muted);">簡述費用內容</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; color: var(--text-secondary);">收據照片（選填，最大 4MB）</div>
+        <div style="padding: 6px; border: 1px solid var(--primary-border); border-radius: 8px; font-size: 12px; color: var(--text-muted);">📷 選擇檔案</div>
+      </div>
+      <div class="mock-submit">送出申請</div>
+    </div>
+  </div>
+
+  <h3>費用類型</h3>
+  <table class="info-table">
+    <tr><th>類型</th><th>說明</th><th>「說明」欄位</th></tr>
+    <tr><td>🍱 餐費</td><td>值班期間的餐食費用</td><td>選填</td></tr>
+    <tr><td>🚗 車資</td><td>交通費用（計程車、油資等）</td><td>選填</td></tr>
+    <tr><td>💳 代墊費</td><td>為個案代墊的各種費用</td><td>選填</td></tr>
+    <tr><td>📝 其它</td><td>其他類型的費用</td><td><strong style="color: var(--danger);">必填</strong></td></tr>
+  </table>
+
+  <div class="tip-box warning">
+    <span class="tip-icon">⚠️</span>
+    <div>
+      <strong>選擇「其它」時，「說明」欄位為必填！</strong>請說明費用的具體內容。<br>
+      <strong>收據照片</strong>雖然選填，但建議拍照上傳作為憑證，有助於加速審核。照片大小不得超過 <strong>4MB</strong>。
+    </div>
+  </div>
+
+  <h3>我的申請紀錄</h3>
+  <p>表單下方會顯示您已提交的所有費用申請，包含類型、金額、日期與審核狀態：</p>
+  <div class="mockup" style="margin: 12px auto;">
+    <div class="mockup-body">
+      <div style="font-size: 14px; font-weight: 700; margin-bottom: 10px;">我的申請紀錄</div>
+      <div style="border-bottom: 1px solid var(--primary-border); padding: 8px 0; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span style="background: var(--primary-light); padding: 2px 6px; border-radius: 6px; font-size: 11px; color: #8b5550;">餐費</span>
+          <span style="font-weight: 700; margin-left: 4px;">NT$ 120</span>
+          <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">2026-04-01 · 午餐便當</div>
+        </div>
+        <span class="badge badge-approved">已通過</span>
+      </div>
+      <div style="border-bottom: 1px solid var(--primary-border); padding: 8px 0; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span style="background: var(--primary-light); padding: 2px 6px; border-radius: 6px; font-size: 11px; color: #8b5550;">車資</span>
+          <span style="font-weight: 700; margin-left: 4px;">NT$ 350</span>
+          <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">2026-03-30</div>
+        </div>
+        <span class="badge badge-pending">待審核</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tip-box info">
+    <span class="tip-icon">💡</span>
+    <div>費用申請送出後<strong>無法自行修改或撤回</strong>，如有錯誤請聯繫管理員處理。通過的費用會在發薪時一併撥付。</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     9. 常見問題 FAQ
+     ════════════════════════════════════════════ -->
+<div class="section" id="faq">
+  <h2><span class="emoji">❓</span> 九、常見問題 FAQ</h2>
+
+  <h3>Q1：忘記打卡上班怎麼辦？</h3>
+  <div style="background: #f9f5f3; border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 14px;">
+    <strong>A：</strong>先用目前時間正常打卡上班，下班後到「紀錄」頁面找到該筆紀錄，點擊「<strong>申請修改</strong>」，將上班時間修正為實際到班時間，並在原因中說明「忘記打卡，實際到班時間為 XX:XX」。
+  </div>
+
+  <h3>Q2：忘記打卡下班怎麼辦？</h3>
+  <div style="background: #f9f5f3; border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 14px;">
+    <strong>A：</strong>您的紀錄會顯示「值班中」。請先打卡下班（此時會記錄當下時間），然後到「紀錄」頁面對該筆紀錄點擊「<strong>申請修改</strong>」，將下班時間修正為實際離班時間。
+  </div>
+
+  <h3>Q3：打卡到錯誤的帳號怎麼辦？</h3>
+  <div style="background: #f9f5f3; border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 14px;">
+    <strong>A：</strong>如果登入時填錯代碼或帳號，導致打卡記錄在別人名下，請到「紀錄」頁面找到該筆紀錄，點擊「<strong>申請刪除</strong>」，在原因中寫明「打錯代碼/帳號，此紀錄為誤打」。然後用正確帳號重新登入打卡。
+  </div>
+
+  <h3>Q4：個案名稱顯示錯誤怎麼辦？</h3>
+  <div style="background: #f9f5f3; border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 14px;">
+    <strong>A：</strong>個案是由管理員在後台指派的。如果您打卡頁面顯示的個案不正確，請<strong>不要打卡</strong>，先聯繫管理員修改您的指派個案。如果已經打了卡，請提交「<strong>申請刪除</strong>」。
+  </div>
+
+  <h3>Q5：為什麼我的薪資看起來不對？</h3>
+  <div style="background: #f9f5f3; border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 14px;">
+    <strong>A：</strong>薪資由系統自動計算，請確認以下幾點：
+    <ul style="margin-top: 8px; padding-left: 20px;">
+      <li>打卡時間是否正確（實際上下班時間）</li>
+      <li>系統以 30 分鐘為最小單位，不滿 30 分鐘的部分會被捨去</li>
+      <li>日班 (08:00~20:00) 和夜班 (20:00~08:00) 費率不同</li>
+      <li>如果打卡時間確有問題，可以「申請修改」</li>
+    </ul>
+    若仍有疑問，請聯繫管理員查核。
+  </div>
+
+  <h3>Q6：打卡時手機沒有網路怎麼辦？</h3>
+  <div style="background: #f9f5f3; border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 14px;">
+    <strong>A：</strong>打卡需要網路連線。如果沒有網路，請先等到有網路時再打卡，然後透過「<strong>申請修改</strong>」將時間修正為實際的上/下班時間。
+  </div>
+
+  <h3>Q7：可以用電腦打卡嗎？</h3>
+  <div style="background: #f9f5f3; border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 14px;">
+    <strong>A：</strong>可以。系統是網頁版，手機和電腦都能使用。但建議<strong>使用手機打卡</strong>，因為手機可以提供更準確的 GPS 定位。
+  </div>
+
+  <h3>Q8：我提出修改/刪除申請後，要等多久？</h3>
+  <div style="background: #f9f5f3; border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 14px;">
+    <strong>A：</strong>審核時間取決於管理員的處理速度。您可以隨時在「紀錄」頁面查看申請狀態。如果狀態持續「待審核」，可提醒管理員處理。
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     10. 重要注意事項
+     ════════════════════════════════════════════ -->
+<div class="section" id="notice">
+  <h2><span class="emoji">🔔</span> 十、重要注意事項</h2>
+
+  <h3>打卡注意事項</h3>
+  <ul class="check-list">
+    <li>每次值班<strong>務必上班、下班各打卡一次</strong>，不可只打其中一次</li>
+    <li>同一時間只能有<strong>一筆未完成的打卡紀錄</strong>（不可連續打兩次上班）</li>
+    <li>上班打卡前先確認<strong>個案名稱正確</strong></li>
+    <li>打卡時請<strong>允許定位權限</strong>，記錄打卡地點</li>
+    <li>下班打卡完成後，薪資才會自動計算</li>
+  </ul>
+
+  <h3>帳號安全</h3>
+  <ul class="check-list">
+    <li>請妥善保管您的帳號、密碼和組織代碼</li>
+    <li>不要將登入資訊分享給其他人</li>
+    <li>使用公共裝置時，用完請務必<strong>登出</strong></li>
+    <li>登入狀態有效期為 24 小時，超時需重新登入</li>
+  </ul>
+
+  <h3>禁止事項</h3>
+  <ul class="x-list">
+    <li>禁止請他人代為打卡</li>
+    <li>禁止使用假定位（GPS 模擬器）</li>
+    <li>禁止在非值班時間故意打卡</li>
+    <li>禁止惡意提交大量修改或刪除申請</li>
+  </ul>
+
+  <div class="tip-box danger">
+    <span class="tip-icon">🚫</span>
+    <div>
+      <strong>違反上述規定可能導致帳號被停用或其他處分。</strong><br>
+      管理員可在後台查看所有打卡紀錄、GPS 定位及修改申請歷史。
+    </div>
+  </div>
+
+  <h3>遇到問題怎麼辦？</h3>
+  <div style="background: var(--primary-light); border-radius: 12px; padding: 16px; margin: 12px 0;">
+    <table class="info-table" style="margin: 0;">
+      <tr><th>問題類型</th><th>處理方式</th></tr>
+      <tr><td>打卡時間有誤</td><td>在「紀錄」頁面 → <strong>申請修改</strong></td></tr>
+      <tr><td>誤打或打錯帳號</td><td>在「紀錄」頁面 → <strong>申請刪除</strong></td></tr>
+      <tr><td>個案指派錯誤</td><td>聯繫管理員調整</td></tr>
+      <tr><td>忘記密碼</td><td>聯繫管理員重設</td></tr>
+      <tr><td>系統無法登入</td><td>確認網路連線，或聯繫管理員</td></tr>
+      <tr><td>薪資計算有疑問</td><td>先核對打卡時間是否正確，再聯繫管理員</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     頁尾
+     ════════════════════════════════════════════ -->
+<div class="footer">
+  <p>達心特護打卡系統 v4.16 操作手冊</p>
+  <p>最後更新：2026 年 4 月 1 日</p>
+  <p style="margin-top: 8px;">如有任何問題，請聯繫您的管理員</p>
+</div>
+
+</div><!-- /container -->
+
+<!-- 回到頂部按鈕 -->
+<a href="#" style="position: fixed; bottom: 20px; right: 20px; width: 44px; height: 44px; background: var(--primary); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; text-decoration: none; box-shadow: 0 4px 12px rgba(232,119,111,0.3); z-index: 100;" title="回到頂部">↑</a>
+
+</body>
+</html>

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getClockRecords, enrichRecords, getRateSettings, getSpecialConditions, getUserById, getCases } from '@/lib/db';
-import { paginate, calculateSalary, getSpecialMultiplier, calculateNurseSalary } from '@/lib/utils';
+import { getClockRecords, enrichRecords, getUserById, getCases } from '@/lib/db';
+import { paginate } from '@/lib/utils';
 
 export async function GET(request: Request) {
   try {
@@ -24,7 +24,6 @@ export async function GET(request: Request) {
     if (session.role === 'employee') {
       const user = await getUserById(session.userId);
       let assignedCaseId = user?.defaultCaseId;
-      // 如果沒有指派個案，使用第一個個案（與 clock/status 邏輯一致）
       if (!assignedCaseId) {
         const cases = await getCases(session.orgId);
         assignedCaseId = cases[0]?.id;
@@ -40,22 +39,10 @@ export async function GET(request: Request) {
     const records = await getClockRecords(session.orgId, filters);
     const enriched = await enrichRecords(records);
 
-    // 計算薪資
-    const allRates = await getRateSettings(session.orgId);
-    const latestRate = allRates.sort((a, b) =>
-      new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime()
-    )[0];
-    const specialConditions = await getSpecialConditions(session.orgId);
-
-    const dayRate = latestRate?.mainDayRate ?? 490;
-    const nightRate = latestRate?.mainNightRate ?? 530;
-
-    const withSalary = enriched.map(r => {
-      const multiplier = getSpecialMultiplier(r.clockInTime, r.clockOutTime, specialConditions);
-      const billing = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
-      const calculatedSalary = calculateNurseSalary(billing); // 員工看到的是特護薪資(90%)
-      return { ...r, calculatedSalary, multiplier };
-    });
+    // 使用預算值
+    const withSalary = enriched.map(r => ({
+      ...r, calculatedSalary: r.nurseSalary, multiplier: 1,
+    }));
 
     const result = paginate(withSalary, page, pageSize);
 

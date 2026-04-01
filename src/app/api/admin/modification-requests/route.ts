@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getModificationRequests, updateModificationRequestStatus, updateClockRecord } from '@/lib/db';
+import { getModificationRequests, updateModificationRequestStatus, updateClockRecord, deleteClockRecord } from '@/lib/db';
 import { supabase, isSupabase } from '@/lib/supabase';
 
 /** GET: 管理員查看所有修改申請（含特護名稱、個案名稱） */
@@ -70,12 +70,28 @@ export async function PUT(request: Request) {
     const status = action === 'approve' ? 'approved' : 'rejected';
     const updated = await updateModificationRequestStatus(id, status, session.userId);
 
-    // 同意時自動更新打卡紀錄
+    // 同意時處理：刪除申請→刪除紀錄，修改申請→更新時間 + 重算 billing
     if (action === 'approve' && updated) {
-      await updateClockRecord(req.recordId, {
-        clockInTime: req.proposedClockInTime,
-        clockOutTime: req.proposedClockOutTime,
-      });
+      const isDeletionRequest = req.reason?.startsWith('[刪除申請]');
+      if (isDeletionRequest) {
+        await deleteClockRecord(req.recordId, session.orgId);
+      } else {
+        const updatedRecord = await updateClockRecord(req.recordId, {
+          clockInTime: req.proposedClockInTime,
+          clockOutTime: req.proposedClockOutTime,
+        });
+        if (updatedRecord?.clockOutTime) {
+          try {
+            const { computeBillingForRecord } = await import('@/lib/billing');
+            const result = await computeBillingForRecord(updatedRecord);
+            await updateClockRecord(req.recordId, {
+              billing: result.billing, nurseSalary: result.nurseSalary,
+              dayHours: result.dayHours, nightHours: result.nightHours,
+              salary: result.billing,
+            });
+          } catch { /* billing 計算失敗不影響簽核 */ }
+        }
+      }
     }
 
     return NextResponse.json({ success: true, data: updated });

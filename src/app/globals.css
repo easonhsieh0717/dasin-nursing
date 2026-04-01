@@ -1,17 +1,63 @@
 @import "tailwindcss";
 
+/* ──────────────────────────────────────
+   暖色系統 — CSS Custom Properties
+   ────────────────────────────────────── */
 :root {
-  --background: #f5f5f5;
-  --foreground: #333333;
+  /* 主色 */
+  --color-primary: #e8776f;
+  --color-primary-hover: #d4635b;
+  --color-primary-light: #fce8e4;
+  --color-primary-border: #f0ddd8;
+
+  /* 語意色 */
+  --color-success: #5dab68;
+  --color-success-hover: #4d9a58;
+  --color-danger: #d9534f;
+  --color-danger-hover: #c9433f;
+  --color-warning: #e8a54b;
+
+  /* 文字 */
+  --color-text-primary: #4a3733;
+  --color-text-secondary: #8b7b76;
+  --color-text-muted: #b0a09a;
+  --color-text-link: #c96b63;
+
+  /* 背景 */
+  --color-bg-start: #fdf8f6;
+  --color-bg-end: #fce8e4;
+  --color-bg-card: #ffffff;
+
+  /* 陰影 / 邊框 */
+  --shadow-card: 0 2px 12px rgba(180,120,100,0.08);
+  --shadow-card-hover: 0 4px 20px rgba(180,120,100,0.14);
+  --border-card: 1px solid #f0ddd8;
+
+  /* 表格 */
+  --color-table-header-bg: #fce8e4;
+  --color-table-header-text: #8b5550;
+  --color-table-border: #f0ddd8;
+  --color-table-row-hover: #fdf5f3;
+
+  /* 導覽 */
+  --color-nav-active: #e8776f;
+  --color-nav-text: #4a3733;
+  --color-nav-hover-bg: #fdf5f3;
 }
 
+/* ──────────────────────────────────────
+   全域基底
+   ────────────────────────────────────── */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: linear-gradient(180deg, var(--color-bg-start) 0%, var(--color-bg-end) 100%);
+  background-attachment: fixed;
+  color: var(--color-text-primary);
+  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
 }
 
-/* 表格外層容器：手機版水平捲動 */
+/* ──────────────────────────────────────
+   表格
+   ────────────────────────────────────── */
 .table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -24,12 +70,12 @@ table {
 }
 
 th {
-  background-color: #e8e8e8;
-  color: #8b0000;
-  font-weight: bold;
+  background-color: var(--color-table-header-bg);
+  color: var(--color-table-header-text);
+  font-weight: 600;
   padding: 6px 8px;
   text-align: center;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-table-border);
   font-size: 13px;
   white-space: nowrap;
 }
@@ -37,12 +83,13 @@ th {
 td {
   padding: 6px 8px;
   text-align: center;
-  border: 1px solid #eee;
+  border: 1px solid var(--color-table-border);
   font-size: 13px;
+  color: var(--color-text-primary);
 }
 
 tr:hover {
-  background-color: #f0f0f0;
+  background-color: var(--color-table-row-hover);
 }
 
 @media (min-width: 640px) {
@@ -56,27 +103,164 @@ tr:hover {
   }
 }
 
-/* 重置 button 預設樣式 — 放在 @layer base 裡，讓 Tailwind utility class 能正確覆蓋 */
+/* ──────────────────────────────────────
+   表單元素
+   ────────────────────────────────────── */
 @layer base {
   button {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
   }
+
+  input, select {
+    border: 1px solid var(--color-primary-border);
+    padding: 6px 10px;
+    border-radius: 10px;
+    outline: none;
+    background: #fff;
+    color: var(--color-text-primary);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(232,119,111,0.15);
+  }
 }
 
-input, select {
-  border: 1px solid #ccc;
-  padding: 6px 10px;
-  border-radius: 4px;
-  outline: none;
+/* ──────────────────────────────────────
+   卡片
+   ────────────────────────────────────── */
+.warm-card {
+  background: var(--color-bg-card);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  border: var(--border-card);
+  transition: box-shadow 0.2s, transform 0.2s;
 }
 
-input:focus, select:focus {
-  border-color: #4a90d9;
+.warm-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-1px);
 }
 
-/* 隱藏水平捲動條（導覽列用） */
+/* ──────────────────────────────────────
+   按鈕
+   ────────────────────────────────────── */
+.btn-primary {
+  background-color: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 8px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+.btn-primary:hover {
+  background-color: var(--color-primary-hover);
+  box-shadow: 0 4px 12px rgba(232,119,111,0.3);
+}
+.btn-primary:active {
+  transform: scale(0.97);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-success {
+  background-color: var(--color-success);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 8px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+.btn-success:hover {
+  background-color: var(--color-success-hover);
+  box-shadow: 0 4px 12px rgba(93,171,104,0.3);
+}
+.btn-success:active {
+  transform: scale(0.97);
+}
+
+.btn-danger {
+  background-color: var(--color-danger);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 8px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+.btn-danger:hover {
+  background-color: var(--color-danger-hover);
+  box-shadow: 0 4px 12px rgba(217,83,79,0.3);
+}
+.btn-danger:active {
+  transform: scale(0.97);
+}
+
+/* ──────────────────────────────────────
+   徽章
+   ────────────────────────────────────── */
+.badge-pending {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: #f0e6e4;
+  color: #8b7b76;
+}
+
+.badge-approved {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: #e8f5ea;
+  color: #3d7a47;
+}
+
+.badge-rejected {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: #fce8e8;
+  color: #b5403d;
+}
+
+/* ──────────────────────────────────────
+   Modal 遮罩
+   ────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(74,55,51,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* ──────────────────────────────────────
+   Scrollbar 隱藏（導覽列用）
+   ────────────────────────────────────── */
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -85,3 +269,76 @@ input:focus, select:focus {
   display: none;
 }
 
+/* ──────────────────────────────────────
+   Keyframe 動畫
+   ────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes toastIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes toastOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+/* ──────────────────────────────────────
+   骨架屏
+   ────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, #f0e6e4 25%, #fdf5f3 50%, #f0e6e4 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* ──────────────────────────────────────
+   導覽底線動畫
+   ────────────────────────────────────── */
+.nav-item {
+  position: relative;
+  transition: color 0.2s;
+}
+.nav-item::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: var(--color-nav-active);
+  transition: width 0.3s ease, left 0.3s ease;
+}
+.nav-item.active::after {
+  width: 100%;
+  left: 0;
+}
+.nav-item:hover::after {
+  width: 100%;
+  left: 0;
+}

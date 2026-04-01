@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import EmployeeNav from '@/components/EmployeeNav';
+import { useToast } from '@/components/Toast';
+import Spinner from '@/components/Spinner';
 
 interface ClockStatus {
   isClockedIn: boolean;
@@ -18,6 +21,7 @@ interface ClockStatus {
 
 export default function ClockPage() {
   const router = useRouter();
+  const toast = useToast();
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
   const [loading, setLoading] = useState(false);
@@ -25,64 +29,42 @@ export default function ClockPage() {
   const [clockStatus, setClockStatus] = useState<ClockStatus | null>(null);
   const remindTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 即時時鐘
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // 取得打卡狀態
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch('/api/clock/status');
       const data = await res.json();
       if (!data.error) setClockStatus(data);
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => {
-    fetchStatus();
-  }, [fetchStatus]);
+  useEffect(() => { fetchStatus(); }, [fetchStatus]);
 
-  // 上班中定時提醒（每 2 分鐘呼叫 /api/push/remind）
   const startRemindTimer = useCallback(() => {
-    // 清除舊 timer
     if (remindTimerRef.current) clearInterval(remindTimerRef.current);
     remindTimerRef.current = setInterval(async () => {
-      try {
-        await fetch('/api/push/remind', { method: 'POST' });
-      } catch {
-        // 失敗不影響使用
-      }
-    }, 2 * 60 * 1000); // 每 2 分鐘
+      try { await fetch('/api/push/remind', { method: 'POST' }); } catch { /* ignore */ }
+    }, 2 * 60 * 1000);
   }, []);
 
   const stopRemindTimer = useCallback(() => {
-    if (remindTimerRef.current) {
-      clearInterval(remindTimerRef.current);
-      remindTimerRef.current = null;
-    }
+    if (remindTimerRef.current) { clearInterval(remindTimerRef.current); remindTimerRef.current = null; }
   }, []);
 
-  // 只有 T123 測試帳號：上班中時自動啟動每 2 分鐘推播提醒
   const isTestAccount = clockStatus?.account === 'T123';
   useEffect(() => {
-    if (isTestAccount && clockStatus?.isClockedIn) {
-      startRemindTimer();
-    } else {
-      stopRemindTimer();
-    }
+    if (isTestAccount && clockStatus?.isClockedIn) startRemindTimer();
+    else stopRemindTimer();
     return () => stopRemindTimer();
   }, [isTestAccount, clockStatus?.isClockedIn, startRemindTimer, stopRemindTimer]);
 
   const getLocation = (): Promise<{ lat: number; lng: number } | null> => {
     return new Promise((resolve) => {
-      if (!navigator.geolocation) {
-        resolve(null);
-        return;
-      }
+      if (!navigator.geolocation) { resolve(null); return; }
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
         () => resolve(null),
@@ -91,7 +73,6 @@ export default function ClockPage() {
     });
   };
 
-  // 請求推播通知權限並訂閱（fire-and-forget，不影響打卡流程）
   const requestPushPermission = async () => {
     try {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
@@ -107,64 +88,44 @@ export default function ClockPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subscription }),
       });
-    } catch {
-      // 訂閱失敗不影響打卡
-    }
+    } catch { /* ignore */ }
   };
 
   const handleClock = async (type: 'in' | 'out') => {
     setLoading(true);
     setMessage('');
-
     try {
       const location = await getLocation();
-
       const res = await fetch('/api/clock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type,
-          lat: location?.lat,
-          lng: location?.lng,
-        }),
+        body: JSON.stringify({ type, lat: location?.lat, lng: location?.lng }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
         setMessage(data.error || '打卡失敗');
         setMessageType('error');
+        toast.error(data.error || '打卡失敗');
         return;
       }
-
       const now = new Date();
       const timeStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      setMessage(`${type === 'in' ? '上班' : '下班'}打卡成功！ ${timeStr}`);
+      const msg = `${type === 'in' ? '上班' : '下班'}打卡成功！ ${timeStr}`;
+      setMessage(msg);
       setMessageType('success');
-
-      // 上班打卡成功後，嘗試訂閱推播通知（不等待結果）
-      if (type === 'in') {
-        requestPushPermission();
-      }
-
-      // 打卡成功後重新取得狀態
+      toast.success(msg);
+      if (type === 'in') requestPushPermission();
       await fetchStatus();
     } catch {
       setMessage('系統錯誤');
       setMessageType('error');
-    } finally {
-      setLoading(false);
+      toast.error('系統錯誤');
     }
-  };
-
-  const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/login');
+    finally { setLoading(false); }
   };
 
   const isClockedIn = clockStatus?.isClockedIn ?? false;
 
-  // 計算已上班經過時間
   let elapsedStr = '';
   if (isClockedIn && clockStatus?.openRecord?.clockInTime) {
     const diff = currentTime.getTime() - new Date(clockStatus.openRecord.clockInTime).getTime();
@@ -173,19 +134,16 @@ export default function ClockPage() {
     elapsedStr = `${hours} 小時 ${mins} 分鐘`;
   }
 
-  // 格式化上班時間
   let clockInTimeStr = '';
   if (clockStatus?.openRecord?.clockInTime) {
     const d = new Date(clockStatus.openRecord.clockInTime);
     clockInTimeStr = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
 
-  // 個案顯示名稱
   const caseName = isClockedIn
     ? (clockStatus?.openRecord?.caseName || '')
     : (clockStatus?.defaultCaseName || '—');
 
-  // 圓形按鈕共用樣式（完全用 inline style，確保手機瀏覽器相容）
   const circleButtonBase: React.CSSProperties = {
     WebkitAppearance: 'none',
     MozAppearance: 'none' as never,
@@ -205,7 +163,7 @@ export default function ClockPage() {
     fontWeight: 'bold',
     border: 'none',
     outline: 'none',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+    boxShadow: '0 10px 25px rgba(180,120,100,0.2)',
     padding: '0',
     margin: '0',
     boxSizing: 'border-box',
@@ -217,87 +175,39 @@ export default function ClockPage() {
     overflow: 'hidden',
   };
 
-  // 橫幅背景色：值班中=橘色，未打卡=藍色
-  const bannerBg = isClockedIn ? '#ea580c' : '#2563eb';
+  const clockInDisabled = loading || isClockedIn;
+  const clockOutDisabled = loading || !isClockedIn;
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
-      {/* Navbar */}
-      <nav style={{
-        backgroundColor: 'white',
-        borderBottom: '1px solid #e5e7eb',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 16px',
-      }}>
-        <div style={{ display: 'flex' }}>
-          <button
-            onClick={() => router.push('/clock')}
-            style={{
-              padding: '12px 20px',
-              fontWeight: '500',
-              color: '#374151',
-              backgroundColor: 'transparent',
-              borderBottom: '2px solid #3b82f6',
-              cursor: 'pointer',
-            }}
-          >
-            打卡
-          </button>
-          <button
-            onClick={() => router.push('/records')}
-            style={{
-              padding: '12px 20px',
-              fontWeight: '500',
-              color: '#374151',
-              backgroundColor: 'transparent',
-              cursor: 'pointer',
-            }}
-          >
-            打卡紀錄
-          </button>
-        </div>
-        <button
-          onClick={handleLogout}
-          style={{
-            padding: '8px 16px',
-            color: '#6b7280',
-            backgroundColor: 'transparent',
-            cursor: 'pointer',
-          }}
-        >
-          登出
-        </button>
-      </nav>
+    <div style={{ minHeight: '100vh' }}>
+      <EmployeeNav />
 
-      {/* 主內容區：個案名稱 + 時間 + 按鈕 */}
+      {/* 主內容區 */}
       <div style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        padding: '0 24px',
-        minHeight: 'calc(100vh - 56px)',
+        justifyContent: 'flex-start',
+        padding: '4vh 24px 24px',
       }}>
 
-        {/* 個案名稱 — 貼在時間上方，大字醒目 */}
+        {/* 個案名稱 */}
         <div style={{ textAlign: 'center', marginBottom: '12px' }}>
           <div style={{
             fontSize: '28px',
             fontWeight: 'bold',
-            color: isClockedIn ? '#ea580c' : '#2563eb',
+            color: isClockedIn ? '#e8776f' : '#4a3733',
             letterSpacing: '0.05em',
           }}>
             {clockStatus ? caseName : '載入中...'}
           </div>
           {isClockedIn && (
-            <div style={{ fontSize: '13px', color: '#ea580c', marginTop: '4px' }}>
-              🟠 值班中 · 上班 {clockInTimeStr} · 已 {elapsedStr}
+            <div style={{ fontSize: '13px', color: '#e8776f', marginTop: '4px' }}>
+              值班中 · 上班 {clockInTimeStr} · 已 {elapsedStr}
             </div>
           )}
           {!isClockedIn && clockStatus && (
-            <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
+            <div style={{ fontSize: '13px', color: '#8b7b76', marginTop: '4px' }}>
               個案代碼：{clockStatus.defaultCaseCode || '—'}
             </div>
           )}
@@ -309,22 +219,22 @@ export default function ClockPage() {
             fontSize: '3rem',
             fontFamily: 'monospace',
             fontWeight: 'bold',
-            color: '#1f2937',
+            color: '#4a3733',
             letterSpacing: '0.05em',
           }}>
             {String(currentTime.getHours()).padStart(2, '0')}:{String(currentTime.getMinutes()).padStart(2, '0')}
-            <span style={{ fontSize: '1.875rem', color: '#9ca3af' }}>
+            <span style={{ fontSize: '1.875rem', color: '#b0a09a' }}>
               :{String(currentTime.getSeconds()).padStart(2, '0')}
             </span>
           </div>
-          <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '8px' }}>
+          <div style={{ fontSize: '14px', color: '#8b7b76', marginTop: '8px' }}>
             {currentTime.getFullYear()}/{String(currentTime.getMonth()+1).padStart(2,'0')}/{String(currentTime.getDate()).padStart(2,'0')}
             {' '}
             {['日','一','二','三','四','五','六'][currentTime.getDay()]}
           </div>
         </div>
 
-        {/* 打卡按鈕 — 兩個圓形並排 */}
+        {/* 打卡按鈕 */}
         <div style={{
           display: 'flex',
           flexDirection: 'row',
@@ -333,29 +243,29 @@ export default function ClockPage() {
           justifyContent: 'center',
           gap: '24px',
         }}>
-          {/* 上班按鈕 */}
           <button
             onClick={() => handleClock('in')}
-            disabled={loading || isClockedIn}
+            disabled={clockInDisabled}
             style={{
               ...circleButtonBase,
-              background: isClockedIn ? '#9ca3af' : 'linear-gradient(135deg, #34d058, #28a745)',
-              opacity: (loading || isClockedIn) ? 0.3 : 1,
-              cursor: (loading || isClockedIn) ? 'default' : 'pointer',
+              background: isClockedIn ? '#b0a09a' : 'linear-gradient(135deg, #5dab68, #4d9a58)',
+              opacity: clockInDisabled ? 0.3 : 1,
+              cursor: clockInDisabled ? 'default' : 'pointer',
+              ...(clockInDisabled ? {} : { animation: 'float 3s ease-in-out infinite' }),
             }}
           >
             上班
           </button>
 
-          {/* 下班按鈕 */}
           <button
             onClick={() => handleClock('out')}
-            disabled={loading || !isClockedIn}
+            disabled={clockOutDisabled}
             style={{
               ...circleButtonBase,
-              background: !isClockedIn ? '#9ca3af' : 'linear-gradient(135deg, #ff6b6b, #dc3545)',
-              opacity: (loading || !isClockedIn) ? 0.3 : 1,
-              cursor: (loading || !isClockedIn) ? 'default' : 'pointer',
+              background: !isClockedIn ? '#b0a09a' : 'linear-gradient(135deg, #e8776f, #d9534f)',
+              opacity: clockOutDisabled ? 0.3 : 1,
+              cursor: clockOutDisabled ? 'default' : 'pointer',
+              ...(clockOutDisabled ? {} : { animation: 'float 3s ease-in-out infinite' }),
             }}
           >
             下班
@@ -367,20 +277,20 @@ export default function ClockPage() {
           <div style={{
             marginTop: '2rem',
             padding: '12px 24px',
-            borderRadius: '12px',
+            borderRadius: '16px',
             fontSize: '16px',
             fontWeight: '500',
-            backgroundColor: messageType === 'success' ? '#f0fdf4' : '#fef2f2',
-            color: messageType === 'success' ? '#15803d' : '#b91c1c',
-            border: messageType === 'success' ? '1px solid #bbf7d0' : '1px solid #fecaca',
+            backgroundColor: messageType === 'success' ? '#e8f5ea' : '#fce8e8',
+            color: messageType === 'success' ? '#3d7a47' : '#b5403d',
+            border: messageType === 'success' ? '1px solid #c8e6c9' : '1px solid #f5c6c6',
           }}>
             {message}
           </div>
         )}
 
         {loading && (
-          <div style={{ marginTop: '24px', color: '#6b7280', fontSize: '14px' }}>
-            正在取得位置並打卡中...
+          <div style={{ marginTop: '24px', color: '#8b7b76', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Spinner size="sm" /> 正在取得位置並打卡中...
           </div>
         )}
       </div>

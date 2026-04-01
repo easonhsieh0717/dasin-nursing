@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getUsers, createUser, updateUser, deleteUser, getClockRecords } from '@/lib/db';
+import type { User } from '@/lib/db';
+import { createNurseSchema, updateNurseSchema, parseBody } from '@/lib/validation';
+
+// Strip password from API response
+function safeUser({ password, ...rest }: User) {
+  void password;
+  return rest;
+}
 
 export async function GET(request: Request) {
   try {
@@ -11,18 +19,18 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '10');
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '10'), 1), 200);
     const search = searchParams.get('search') || undefined;
     const all = searchParams.get('all');
 
     if (all === 'true') {
       const { users, total } = await getUsers(session.orgId, search);
-      return NextResponse.json({ data: users, total });
+      return NextResponse.json({ data: users.map(safeUser), total });
     }
 
     const { users, total } = await getUsers(session.orgId, search, page, pageSize);
     const totalPages = Math.ceil(total / pageSize);
-    return NextResponse.json({ data: users, total, totalPages });
+    return NextResponse.json({ data: users.map(safeUser), total, totalPages });
   } catch (err) {
     console.error('Nurses GET error:', err);
     return NextResponse.json({ error: '系統錯誤' }, { status: 500 });
@@ -37,21 +45,17 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    const parsed = parseBody(createNurseSchema, body);
+    if (!parsed.data) return NextResponse.json({ error: parsed.error }, { status: 400 });
+
     const user = await createUser({
       orgId: session.orgId,
-      name: body.name,
-      account: body.account,
-      password: body.password,
+      ...parsed.data,
       role: 'employee',
-      hourlyRate: body.hourlyRate || 200,
-      bank: body.bank || '',
-      accountNo: body.accountNo || '',
-      accountName: body.accountName || '',
-      defaultCaseId: body.defaultCaseId || undefined,
-      note: body.note || '',
+      defaultCaseId: parsed.data.defaultCaseId || undefined,
     });
 
-    return NextResponse.json(user);
+    return NextResponse.json(safeUser(user));
   } catch (err) {
     console.error('Nurses POST error:', err);
     return NextResponse.json({ error: '新增失敗' }, { status: 500 });
@@ -66,12 +70,15 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { id, ...data } = body;
-    const updated = await updateUser(id, data);
+    const parsed = parseBody(updateNurseSchema, body);
+    if (!parsed.data) return NextResponse.json({ error: parsed.error }, { status: 400 });
+
+    const { id, ...allowed } = parsed.data;
+    const updated = await updateUser(id, allowed as Partial<User>, session.orgId);
     if (!updated) {
       return NextResponse.json({ error: '找不到特護' }, { status: 404 });
     }
-    return NextResponse.json(updated);
+    return NextResponse.json(safeUser(updated));
   } catch (err) {
     console.error('Nurses PUT error:', err);
     return NextResponse.json({ error: '更新失敗' }, { status: 500 });
@@ -97,7 +104,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: `此特護有 ${records.length} 筆打卡紀錄，無法刪除` }, { status: 400 });
     }
 
-    await deleteUser(id);
+    await deleteUser(id, session.orgId);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Nurses DELETE error:', err);

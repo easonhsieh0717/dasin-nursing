@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getCases, createCase, updateCase, deleteCase, getClockRecords } from '@/lib/db';
-import { paginate } from '@/lib/utils';
+import { createCaseSchema, updateCaseSchema, parseBody } from '@/lib/validation';
 
 export async function GET(request: Request) {
   try {
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '10');
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20'), 1), 200);
     const search = searchParams.get('search') || undefined;
     const all = searchParams.get('all');
 
@@ -22,7 +22,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ data: cases, total: cases.length });
     }
 
-    return NextResponse.json(paginate(cases, page, pageSize));
+    // Server-side pagination
+    const total = cases.length;
+    const totalPages = Math.ceil(total / pageSize);
+    const start = (page - 1) * pageSize;
+    const data = cases.slice(start, start + pageSize);
+    return NextResponse.json({ data, total, totalPages });
   } catch (err) {
     console.error('Cases GET error:', err);
     return NextResponse.json({ error: '系統錯誤' }, { status: 500 });
@@ -37,14 +42,10 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const newCase = await createCase({
-      orgId: session.orgId,
-      name: body.name,
-      code: body.code,
-      caseType: body.caseType || '一般',
-      settlementType: body.settlementType || '週',
-    });
+    const parsed = parseBody(createCaseSchema, body);
+    if (!parsed.data) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
+    const newCase = await createCase({ orgId: session.orgId, ...parsed.data });
     return NextResponse.json(newCase);
   } catch (err) {
     console.error('Cases POST error:', err);
@@ -60,8 +61,10 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { id, ...data } = body;
-    const updated = await updateCase(id, data);
+    const parsed = parseBody(updateCaseSchema, body);
+    if (!parsed.data) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    const { id, ...data } = parsed.data;
+    const updated = await updateCase(id, data, session.orgId);
     if (!updated) {
       return NextResponse.json({ error: '找不到個案' }, { status: 404 });
     }
@@ -91,7 +94,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: `此個案有 ${records.length} 筆打卡紀錄，無法刪除` }, { status: 400 });
     }
 
-    await deleteCase(id);
+    await deleteCase(id, session.orgId);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Cases DELETE error:', err);

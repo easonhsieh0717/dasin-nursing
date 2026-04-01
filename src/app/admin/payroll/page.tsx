@@ -1,6 +1,11 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import CaseSearchInput from '@/components/CaseSearchInput';
+import { useToast } from '@/components/Toast';
+import { Search, Calculator, Check, Printer, CreditCard } from 'lucide-react';
+import Spinner from '@/components/Spinner';
+import EmptyState from '@/components/EmptyState';
 
 interface PayrollItem {
   name: string;
@@ -14,12 +19,15 @@ interface PayrollItem {
   isPostOffice: boolean;
   caseNames: string[];
   note: string;
+  advanceExpenseTotal: number;
 }
 
 interface PayrollData {
+  caseName: string;
   summary: PayrollItem[];
   totalAmount: number;
   totalBilling: number;
+  totalAdvanceExpenses: number;
   postOfficeCount: number;
   postOfficeAmount: number;
   bankCount: number;
@@ -29,7 +37,16 @@ interface PayrollData {
   unpaidCount: number;
 }
 
+interface CaseOption {
+  id: string;
+  name: string;
+  code: string;
+}
+
 export default function PayrollPage() {
+  const toast = useToast();
+  const [cases, setCases] = useState<CaseOption[]>([]);
+  const [selectedCaseId, setSelectedCaseId] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [data, setData] = useState<PayrollData | null>(null);
@@ -37,17 +54,33 @@ export default function PayrollPage() {
   const [confirming, setConfirming] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
+  // 載入個案清單
+  useEffect(() => {
+    fetch('/api/admin/cases?all=true')
+      .then(res => res.json())
+      .then(d => setCases(d.data || []))
+      .catch(() => {});
+  }, []);
+
   const fetchPayroll = async () => {
+    if (!selectedCaseId) {
+      toast.error('請先選擇個案');
+      return;
+    }
     setLoading(true);
     try {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ caseId: selectedCaseId });
       if (startTime) params.set('startTime', startTime);
       if (endTime) params.set('endTime', endTime);
       const res = await fetch(`/api/admin/payroll?${params}`);
       const d = await res.json();
+      if (!res.ok) {
+        toast.error(d.error || '載入失敗');
+        return;
+      }
       setData(d);
     } catch {
-      alert('載入失敗');
+      toast.error('載入失敗');
     } finally {
       setLoading(false);
     }
@@ -55,7 +88,7 @@ export default function PayrollPage() {
 
   const handleConfirmPayment = async () => {
     if (!data || data.unpaidCount === 0) return;
-    if (!confirm(`確定要標記這 ${data.unpaidCount} 筆紀錄為已發放？此操作無法撤銷。`)) return;
+    if (!confirm(`確定要發放 ${data.postOfficeCount + data.bankCount} 位特護共 ${data.unpaidCount} 筆紀錄？此操作無法撤銷。`)) return;
 
     setConfirming(true);
     try {
@@ -66,17 +99,15 @@ export default function PayrollPage() {
       });
       const d = await res.json();
       if (!res.ok) {
-        alert(d.error || '操作失敗');
+        toast.error(d.error || '操作失敗');
         return;
       }
-      alert(`已成功標記 ${d.count} 筆紀錄為已發放！`);
-      // 自動列印
+      toast.success(`已成功標記 ${d.count} 筆紀錄為已發放！`);
       printPostalSlips();
       printBankList();
-      // 重新載入資料
       await fetchPayroll();
     } catch {
-      alert('系統錯誤');
+      toast.error('系統錯誤');
     } finally {
       setConfirming(false);
     }
@@ -86,7 +117,7 @@ export default function PayrollPage() {
     if (!data) return;
     const postItems = data.summary.filter(s => s.isPostOffice && s.accountNo);
     if (postItems.length === 0) {
-      alert('沒有郵局項目可列印');
+      toast.error('沒有郵局項目可列印');
       return;
     }
 
@@ -126,12 +157,11 @@ export default function PayrollPage() {
     </div>`;
 
     for (const item of postItems) {
-      const amt = Math.floor(item.totalSalary);
+      const amt = Math.floor(item.totalSalary + (item.advanceExpenseTotal || 0));
       const rawAcc = item.accountNo.replace(/-/g, '').padStart(14, '0');
       const accPart1 = rawAcc.slice(0, 7);
       const accPart2 = rawAcc.slice(7, 14);
 
-      // 中文大寫金額
       const digits = ['零', '壹', '貳', '參', '肆', '伍', '陸', '柒', '捌', '玖'];
       const w = Math.floor(amt / 10000);
       const q = Math.floor((amt % 10000) / 1000);
@@ -188,12 +218,12 @@ export default function PayrollPage() {
     if (!data) return;
     const bankItems = data.summary.filter(s => !s.isPostOffice && s.totalSalary > 0);
     if (bankItems.length === 0) {
-      alert('沒有銀行匯款項目');
+      toast.error('沒有銀行匯款項目');
       return;
     }
 
     const now = new Date();
-    const total = bankItems.reduce((sum, s) => sum + Math.floor(s.totalSalary), 0);
+    const total = bankItems.reduce((sum, s) => sum + Math.floor(s.totalSalary + (s.advanceExpenseTotal || 0)), 0);
 
     let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>銀行匯款清單</title>
     <style>
@@ -230,7 +260,7 @@ export default function PayrollPage() {
         <td>${item.bank || '-'}</td>
         <td style="font-family:monospace;">${item.accountNo || '-'}</td>
         <td>${item.accountName || item.name}</td>
-        <td style="text-align:right;">NT$ ${Math.floor(item.totalSalary).toLocaleString()}</td>
+        <td style="text-align:right;">NT$ ${Math.floor(item.totalSalary + (item.advanceExpenseTotal || 0)).toLocaleString()}</td>
       </tr>`;
     });
 
@@ -253,64 +283,84 @@ export default function PayrollPage() {
 
   return (
     <div className="p-3 sm:p-6">
-      <h2 className="text-base sm:text-xl font-bold text-gray-800 mb-4">薪資發放</h2>
+      <h2 className="text-base sm:text-xl font-bold text-[var(--color-text-primary)] mb-4">薪資發放</h2>
 
-      {/* Date filter */}
-      <div className="bg-white p-3 sm:p-4 rounded-lg mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
-        <span className="font-bold text-orange-700 text-sm">篩選時間</span>
-        <input type="date" value={startTime} onChange={e => setStartTime(e.target.value)}
-          className="px-2 py-1 border rounded text-sm flex-1 min-w-[120px]" />
-        <span className="text-sm">~</span>
-        <input type="date" value={endTime} onChange={e => setEndTime(e.target.value)}
-          className="px-2 py-1 border rounded text-sm flex-1 min-w-[120px]" />
-        <button onClick={fetchPayroll} disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 text-sm disabled:opacity-50">
-          {loading ? '計算中...' : '計算薪資'}
-        </button>
+      {/* 個案選擇 + 日期篩選 */}
+      <div className="warm-card p-3 sm:p-4 mb-4 space-y-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <span className="font-bold text-[var(--color-primary)] text-sm whitespace-nowrap">① 選擇個案</span>
+          <CaseSearchInput cases={cases} value={selectedCaseId}
+            onChange={id => { setSelectedCaseId(id); setData(null); }}
+            showCode placeholder="搜尋個案..." className="flex-1 min-w-[160px]" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <span className="font-bold text-[var(--color-primary)] text-sm whitespace-nowrap">② 日期範圍</span>
+          <input type="date" value={startTime} onChange={e => setStartTime(e.target.value)}
+            className="px-2 py-1 border rounded text-sm flex-1 min-w-[120px]" />
+          <span className="text-sm">~</span>
+          <input type="date" value={endTime} onChange={e => setEndTime(e.target.value)}
+            className="px-2 py-1 border rounded text-sm flex-1 min-w-[120px]" />
+          <button onClick={fetchPayroll} disabled={loading || !selectedCaseId}
+            className="px-4 py-2 btn-primary text-white rounded font-bold text-sm disabled:opacity-50 flex items-center gap-1">
+            <Search size={14} className="inline mr-1" />{loading ? <><Spinner size="sm" className="mr-1" />計算中...</> : '計算薪資'}
+          </button>
+        </div>
       </div>
 
       {data && (
         <>
+          {/* 個案名稱標題 */}
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-4 text-sm font-bold text-orange-800">
+            個案：{data.caseName}{startTime && endTime ? ` | 期間：${startTime} ~ ${endTime}` : ''}
+          </div>
+
           {/* Stats overview */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
-            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-500">
-              <div className="text-sm text-gray-500">請款總額</div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+            <div className="warm-card p-4 border-l-4 border-blue-500">
+              <div className="text-sm text-[var(--color-text-secondary)]">請款總額</div>
               <div className="text-lg sm:text-xl font-bold text-blue-700">NT$ {Math.floor(data.totalBilling || 0).toLocaleString()}</div>
-              <div className="text-xs text-gray-400">{data.summary.length} 位特護</div>
+              <div className="text-xs text-[var(--color-text-muted)]">{data.summary.length} 位特護</div>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-green-500">
-              <div className="text-sm text-gray-500">發放總額（特護薪資 90%）</div>
-              <div className="text-xl sm:text-2xl font-bold text-green-700">NT$ {Math.floor(data.totalAmount).toLocaleString()}</div>
-              <div className="text-xs text-gray-400">公司利潤：NT$ {Math.floor((data.totalBilling || 0) - data.totalAmount).toLocaleString()}</div>
+            <div className="warm-card p-4 border-l-4 border-green-500">
+              <div className="text-sm text-[var(--color-text-secondary)]">發放總額（薪資 90%）</div>
+              <div className="text-xl sm:text-2xl font-bold text-[var(--color-success)]">NT$ {Math.floor(data.totalAmount).toLocaleString()}</div>
+              <div className="text-xs text-[var(--color-text-muted)]">公司利潤：NT$ {Math.floor((data.totalBilling || 0) - data.totalAmount).toLocaleString()}</div>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-red-400">
-              <div className="text-sm text-gray-500">郵局</div>
-              <div className="text-lg sm:text-xl font-bold text-red-600">NT$ {Math.floor(data.postOfficeAmount).toLocaleString()}</div>
-              <div className="text-xs text-gray-400">{data.postOfficeCount} 筆</div>
+            {data.totalAdvanceExpenses > 0 && (
+              <div className="warm-card p-4 border-l-4 border-purple-500">
+                <div className="text-sm text-[var(--color-text-secondary)]">代墊費用</div>
+                <div className="text-lg sm:text-xl font-bold text-purple-700">NT$ {data.totalAdvanceExpenses.toLocaleString()}</div>
+                <div className="text-xs text-[var(--color-text-muted)]">實發含代墊：NT$ {Math.floor(data.totalAmount + data.totalAdvanceExpenses).toLocaleString()}</div>
+              </div>
+            )}
+            <div className="warm-card p-4 border-l-4 border-red-400">
+              <div className="text-sm text-[var(--color-text-secondary)]">郵局</div>
+              <div className="text-lg sm:text-xl font-bold text-[var(--color-danger)]">NT$ {Math.floor(data.postOfficeAmount).toLocaleString()}</div>
+              <div className="text-xs text-[var(--color-text-muted)]">{data.postOfficeCount} 筆</div>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-400">
-              <div className="text-sm text-gray-500">銀行</div>
-              <div className="text-lg sm:text-xl font-bold text-blue-600">NT$ {Math.floor(data.bankAmount).toLocaleString()}</div>
-              <div className="text-xs text-gray-400">{data.bankCount} 筆</div>
+            <div className="warm-card p-4 border-l-4 border-blue-400">
+              <div className="text-sm text-[var(--color-text-secondary)]">銀行</div>
+              <div className="text-lg sm:text-xl font-bold text-[var(--color-text-link)]">NT$ {Math.floor(data.bankAmount).toLocaleString()}</div>
+              <div className="text-xs text-[var(--color-text-muted)]">{data.bankCount} 筆</div>
             </div>
           </div>
 
           {/* 發放狀態提示 */}
           {data.paidCount > 0 && data.unpaidCount === 0 && (
-            <div className="bg-green-50 border border-green-300 rounded-lg p-3 mb-4 text-sm text-green-800 font-bold">
-              ✓ 此期間 {data.paidCount} 筆紀錄已全部發放
+            <div className="bg-green-50 border border-green-300 rounded-xl p-3 mb-4 text-sm text-green-800 font-bold">
+              此期間 {data.paidCount} 筆紀錄已全部發放
             </div>
           )}
           {data.paidCount > 0 && data.unpaidCount > 0 && (
-            <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 mb-4 text-sm text-yellow-800">
-              已發放 {data.paidCount} 筆，尚有 <span className="font-bold text-red-600">{data.unpaidCount} 筆未發放</span>
+            <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-3 mb-4 text-sm text-yellow-800">
+              已發放 {data.paidCount} 筆，尚有 <span className="font-bold text-[var(--color-danger)]">{data.unpaidCount} 筆未發放</span>
             </div>
           )}
 
           {/* Hint: missing bank info */}
           {data.summary.some(s => !s.bank && !s.accountNo) && (
-            <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 mb-4 text-sm text-yellow-800">
-              ⚠ 部分特護尚未設定銀行資訊，請至「<a href="/admin/nurses" className="text-blue-600 underline font-bold">特護管理</a>」頁面填寫銀行/郵局帳號，系統才能正確分類郵局與銀行。
+            <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-3 mb-4 text-sm text-yellow-800">
+              部分特護尚未設定銀行資訊，請至「<a href="/admin/nurses" className="text-[var(--color-text-link)] underline font-bold">特護管理</a>」頁面填寫銀行/郵局帳號，系統才能正確分類郵局與銀行。
             </div>
           )}
 
@@ -318,53 +368,78 @@ export default function PayrollPage() {
           <div className="flex flex-wrap gap-2 mb-4">
             <button onClick={handleConfirmPayment}
               disabled={data.unpaidCount === 0 || confirming}
-              className="px-5 py-2.5 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 text-sm disabled:opacity-40 disabled:cursor-not-allowed shadow-md">
-              {confirming ? '處理中...' : `✓ 確定發放 (${data.unpaidCount} 筆)`}
+              className="px-5 py-2.5 btn-success text-white rounded-lg font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed shadow-md flex items-center gap-1">
+              <Check size={14} className="inline mr-1" />{confirming ? <><Spinner size="sm" className="mr-1" />處理中...</> : `確定發放 (${data.postOfficeCount + data.bankCount} 人)`}
             </button>
             <button onClick={printPostalSlips}
               disabled={data.postOfficeCount === 0}
-              className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 text-sm disabled:opacity-40 disabled:cursor-not-allowed">
-              列印郵局存款單 {data.postOfficeCount > 0 ? `(${data.postOfficeCount} 筆)` : ''}
+              className="px-4 py-2 btn-danger text-white rounded font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+              <Printer size={14} className="inline mr-1" />列印郵局存款單 {data.postOfficeCount > 0 ? `(${data.postOfficeCount} 筆)` : ''}
             </button>
             <button onClick={printBankList}
               disabled={data.bankCount === 0}
-              className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 text-sm disabled:opacity-40 disabled:cursor-not-allowed">
-              列印銀行匯款清單 {data.bankCount > 0 ? `(${data.bankCount} 筆)` : ''}
+              className="px-4 py-2 btn-primary text-white rounded font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+              <Printer size={14} className="inline mr-1" />列印銀行匯款清單 {data.bankCount > 0 ? `(${data.bankCount} 筆)` : ''}
             </button>
           </div>
 
           {/* Post Office section */}
           {postItems.length > 0 && (
             <div className="mb-6">
-              <h3 className="text-sm font-bold text-red-600 mb-2 border-l-4 border-red-500 pl-2">郵局發放明細</h3>
+              <h3 className="text-sm font-bold text-[var(--color-danger)] mb-2 border-l-4 border-red-500 pl-2">郵局發放明細</h3>
               <p className="text-sm text-red-700 font-bold mb-2">郵局小計：{postItems.length} 筆 | 金額總計：{Math.floor(postItems.reduce((s, i) => s + i.totalSalary, 0)).toLocaleString()} 元</p>
+              {/* 手機卡片 */}
+              <div className="sm:hidden space-y-2">
+                {postItems.map(item => (
+                  <div key={item.userId} className="warm-card p-3 border">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-[var(--color-text-primary)]">{item.name}</span>
+                      <span className="font-bold text-[var(--color-success)]">NT$ {Math.floor(item.totalSalary + (item.advanceExpenseTotal || 0)).toLocaleString()}</span>
+                    </div>
+                    <div className="text-xs text-[var(--color-text-secondary)] mb-1">郵局 <span className="font-mono">{item.accountNo || '-'}</span> | 戶名：{item.accountName || item.name}</div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span>{item.shifts} 班</span>
+                      <span>薪資 {Math.floor(item.totalSalary).toLocaleString()}</span>
+                      {item.advanceExpenseTotal > 0 && <span className="text-purple-700">代墊 {item.advanceExpenseTotal.toLocaleString()}</span>}
+                    </div>
+                    {item.note && <div className="text-xs text-[var(--color-text-muted)] mt-1">{item.note}</div>}
+                  </div>
+                ))}
+              </div>
+              {/* 桌面表格 */}
+              <div className="hidden sm:block">
               <div className="table-wrap">
                 <table>
                   <thead>
                     <tr>
-                      <th>個案</th>
                       <th>特護全名</th>
                       <th>帳戶名稱</th>
                       <th>銀行</th>
                       <th>帳號</th>
-                      <th>金額</th>
+                      <th>班數</th>
+                      <th>薪資</th>
+                      <th>代墊</th>
+                      <th>實發</th>
                       <th>備註</th>
                     </tr>
                   </thead>
                   <tbody>
                     {postItems.map(item => (
                       <tr key={item.userId}>
-                        <td>{item.caseNames?.join('、') || '-'}</td>
                         <td>{item.name}</td>
                         <td>{item.accountName || item.name}</td>
                         <td>郵局</td>
                         <td className="font-mono text-xs">{item.accountNo || '-'}</td>
-                        <td className="font-bold text-right">{Math.floor(item.totalSalary).toLocaleString()}</td>
-                        <td className="text-xs text-gray-500">{item.note || ''}</td>
+                        <td className="text-center">{item.shifts}</td>
+                        <td className="text-right">{Math.floor(item.totalSalary).toLocaleString()}</td>
+                        <td className="text-right text-purple-700">{item.advanceExpenseTotal > 0 ? item.advanceExpenseTotal.toLocaleString() : '-'}</td>
+                        <td className="font-bold text-right text-[var(--color-success)]">{Math.floor(item.totalSalary + (item.advanceExpenseTotal || 0)).toLocaleString()}</td>
+                        <td className="text-xs text-[var(--color-text-secondary)]">{item.note || ''}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
               </div>
             </div>
           )}
@@ -372,47 +447,72 @@ export default function PayrollPage() {
           {/* Bank section */}
           {bankItems.length > 0 && (
             <div className="mb-6">
-              <h3 className="text-sm font-bold text-blue-600 mb-2 border-l-4 border-blue-500 pl-2">銀行匯款明細</h3>
+              <h3 className="text-sm font-bold text-[var(--color-text-link)] mb-2 border-l-4 border-blue-500 pl-2">銀行匯款明細</h3>
               <p className="text-sm text-blue-700 font-bold mb-2">銀行小計：{bankItems.length} 筆 | 金額總計：{Math.floor(bankItems.reduce((s, i) => s + i.totalSalary, 0)).toLocaleString()} 元</p>
+              {/* 手機卡片 */}
+              <div className="sm:hidden space-y-2">
+                {bankItems.map(item => (
+                  <div key={item.userId} className="warm-card p-3 border">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-[var(--color-text-primary)]">{item.name}</span>
+                      <span className="font-bold text-[var(--color-success)]">NT$ {Math.floor(item.totalSalary + (item.advanceExpenseTotal || 0)).toLocaleString()}</span>
+                    </div>
+                    <div className="text-xs text-[var(--color-text-secondary)] mb-1">{item.bank || '-'} <span className="font-mono">{item.accountNo || '-'}</span> | 戶名：{item.accountName || item.name}</div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span>{item.shifts} 班</span>
+                      <span>薪資 {Math.floor(item.totalSalary).toLocaleString()}</span>
+                      {item.advanceExpenseTotal > 0 && <span className="text-purple-700">代墊 {item.advanceExpenseTotal.toLocaleString()}</span>}
+                    </div>
+                    {item.note && <div className="text-xs text-[var(--color-text-muted)] mt-1">{item.note}</div>}
+                  </div>
+                ))}
+              </div>
+              {/* 桌面表格 */}
+              <div className="hidden sm:block">
               <div className="table-wrap">
                 <table>
                   <thead>
                     <tr>
-                      <th>個案</th>
                       <th>特護全名</th>
                       <th>帳戶名稱</th>
                       <th>銀行</th>
                       <th>帳號</th>
-                      <th>金額</th>
+                      <th>班數</th>
+                      <th>薪資</th>
+                      <th>代墊</th>
+                      <th>實發</th>
                       <th>備註</th>
                     </tr>
                   </thead>
                   <tbody>
                     {bankItems.map(item => (
                       <tr key={item.userId}>
-                        <td>{item.caseNames?.join('、') || '-'}</td>
                         <td>{item.name}</td>
                         <td>{item.accountName || item.name}</td>
                         <td className="text-xs">{item.bank || '-'}</td>
                         <td className="font-mono text-xs">{item.accountNo || '-'}</td>
-                        <td className="font-bold text-right">{Math.floor(item.totalSalary).toLocaleString()}</td>
-                        <td className="text-xs text-gray-500">{item.note || ''}</td>
+                        <td className="text-center">{item.shifts}</td>
+                        <td className="text-right">{Math.floor(item.totalSalary).toLocaleString()}</td>
+                        <td className="text-right text-purple-700">{item.advanceExpenseTotal > 0 ? item.advanceExpenseTotal.toLocaleString() : '-'}</td>
+                        <td className="font-bold text-right text-[var(--color-success)]">{Math.floor(item.totalSalary + (item.advanceExpenseTotal || 0)).toLocaleString()}</td>
+                        <td className="text-xs text-[var(--color-text-secondary)]">{item.note || ''}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              </div>
             </div>
           )}
 
           {data.summary.length === 0 && (
-            <div className="text-center py-12 text-gray-400">此時段無打卡紀錄</div>
+            <EmptyState icon={CreditCard} title="此個案在此期間無打卡紀錄" />
           )}
         </>
       )}
 
       {!data && !loading && (
-        <div className="text-center py-12 text-gray-400">請選擇時間範圍後點擊「計算薪資」</div>
+        <EmptyState icon={Calculator} title="請選擇個案與日期範圍後點擊「計算薪資」" />
       )}
 
       <div ref={printRef} />

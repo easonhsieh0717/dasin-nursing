@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getModificationRequests, createModificationRequest, getModificationRequestsByRecordId, getClockRecords } from '@/lib/db';
+import { getModificationRequests, createModificationRequest } from '@/lib/db';
+import { supabase, isSupabase } from '@/lib/supabase';
 
 /** GET: 特護查自己的修改申請列表 */
 export async function GET() {
@@ -28,14 +29,13 @@ export async function POST(request: Request) {
     if (!recordId) return NextResponse.json({ error: '缺少紀錄 ID' }, { status: 400 });
     if (!reason || !reason.trim()) return NextResponse.json({ error: '請填寫修改原因' }, { status: 400 });
 
-    // 確認紀錄屬於此使用者
-    const records = await getClockRecords(session.orgId, { userId: session.userId });
-    const record = records.find(r => r.id === recordId);
-    if (!record) return NextResponse.json({ error: '找不到此紀錄或無權限' }, { status: 404 });
-
-    // 檢查是否已有 pending 申請
-    const existing = await getModificationRequestsByRecordId(recordId, 'pending');
-    if (existing.length > 0) return NextResponse.json({ error: '此紀錄已有待審核的修改申請' }, { status: 400 });
+    // 確認紀錄存在（同組織即可申請）
+    let record: { clockInTime: string | null; clockOutTime: string | null } | null = null;
+    if (isSupabase) {
+      const { data } = await supabase.from('clock_records').select('clock_in_time, clock_out_time').eq('id', recordId).eq('org_id', session.orgId).single();
+      if (data) record = { clockInTime: data.clock_in_time, clockOutTime: data.clock_out_time };
+    }
+    if (!record) return NextResponse.json({ error: '找不到此紀錄' }, { status: 404 });
 
     // 建立申請
     const req = await createModificationRequest({

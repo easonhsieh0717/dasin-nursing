@@ -5,8 +5,9 @@ import { verifyToken } from './lib/auth';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Public routes
-  if (pathname === '/login' || pathname.startsWith('/api/auth')) {
+  // Public routes & static files
+  if (pathname === '/login' || pathname.startsWith('/api/auth')
+    || pathname.match(/\.(png|jpg|jpeg|svg|ico|gif|webp|css|js|html|json|xml|txt|webmanifest)$/)) {
     return NextResponse.next();
   }
 

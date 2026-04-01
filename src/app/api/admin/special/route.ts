@@ -59,7 +59,7 @@ export async function PUT(request: Request) {
 
     const body = await request.json();
     const { id, ...data } = body;
-    const updated = await updateSpecialCondition(id, data);
+    const updated = await updateSpecialCondition(id, data, session.orgId);
     if (!updated) {
       return NextResponse.json({ error: '找不到紀錄' }, { status: 404 });
     }
@@ -83,7 +83,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: '缺少 ID' }, { status: 400 });
     }
 
-    await deleteSpecialCondition(id);
+    await deleteSpecialCondition(id, session.orgId);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Special DELETE error:', err);

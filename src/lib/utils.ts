@@ -8,6 +8,17 @@ export function calculateNurseSalary(billing: number): number {
   return Math.round(billing * NURSE_SALARY_RATIO);
 }
 
+/** 依個案資費地區選擇適用費率 */
+export function getRatesForCase(
+  rate: { mainDayRate: number; mainNightRate: number; otherDayRate: number; otherNightRate: number },
+  caseType: string
+): { dayRate: number; nightRate: number } {
+  if (caseType === '其它地區') {
+    return { dayRate: rate.otherDayRate, nightRate: rate.otherNightRate };
+  }
+  return { dayRate: rate.mainDayRate, nightRate: rate.mainNightRate };
+}
+
 interface SpecialConditionForCalc {
   multiplier: number;
   startTime: string;
@@ -69,7 +80,7 @@ function calcDayNightMinutes(clockIn: string, clockOut: string): { dayMin: numbe
  * 計算薪資：根據打卡時段的日/夜班小時數 × 對應費率 × 特殊倍率
  * 日班：08:00 ~ 20:00  →  dayRate (490/h)
  * 夜班：20:00 ~ 08:00  →  nightRate (530/h)
- * 不滿 1 小時的零頭無條件捨去（Math.floor）
+ * 以 0.5 小時為最小計算單位，不滿半小時的零頭捨去
  * 使用台灣時間 (UTC+8) 計算，不受伺服器時區影響
  */
 export function calculateSalary(
@@ -83,9 +94,9 @@ export function calculateSalary(
 
   const { dayMin, nightMin } = calcDayNightMinutes(clockIn, clockOut);
 
-  // 不滿1小時的零頭無條件捨去
-  const dayHours = Math.floor(dayMin / 60);
-  const nightHours = Math.floor(nightMin / 60);
+  // 以 0.5 小時為最小單位，不滿半小時的零頭捨去
+  const dayHours = Math.floor(dayMin / 30) * 0.5;
+  const nightHours = Math.floor(nightMin / 30) * 0.5;
 
   const salary = (dayHours * dayRate + nightHours * nightRate) * specialMultiplier;
   return Math.round(salary);
@@ -138,11 +149,11 @@ export function formatDateTime(dateStr: string | null): string {
   return `${year}年${month}月${day}日 ${hour}點${minute}分`;
 }
 
-/** 拆分日班/夜班時數（日班 08:00~20:00, 夜班 20:00~08:00），不滿1小時捨去，使用台灣時間 */
+/** 拆分日班/夜班時數（日班 08:00~20:00, 夜班 20:00~08:00），以0.5小時為單位捨去，使用台灣時間 */
 export function getDayNightHours(clockIn: string | null, clockOut: string | null): { dayHours: number; nightHours: number } {
   if (!clockIn || !clockOut) return { dayHours: 0, nightHours: 0 };
   const { dayMin, nightMin } = calcDayNightMinutes(clockIn, clockOut);
-  return { dayHours: Math.floor(dayMin / 60), nightHours: Math.floor(nightMin / 60) };
+  return { dayHours: Math.floor(dayMin / 30) * 0.5, nightHours: Math.floor(nightMin / 30) * 0.5 };
 }
 
 export function formatCoords(lat: number | null, lng: number | null): string {

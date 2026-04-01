@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- Soft circle background -->
+  <circle cx="60" cy="60" r="58" fill="#fce8e4" stroke="#f0ddd8" stroke-width="2"/>
+
+  <!-- Heart -->
+  <path d="M60 85 C60 85 30 65 30 48 C30 38 38 30 48 30 C53 30 57 33 60 37 C63 33 67 30 72 30 C82 30 90 38 90 48 C90 65 60 85 60 85Z"
+        fill="#e8776f" opacity="0.9"/>
+
+  <!-- Left hand (cupping from below) -->
+  <path d="M25 68 C28 72 35 78 42 82 C46 84 52 86 56 87 C54 88 48 88 42 86 C35 83 27 77 22 72 C20 69 20 66 22 65 C23 64 24 66 25 68Z"
+        fill="#d4a59a" opacity="0.7"/>
+
+  <!-- Right hand (cupping from below) -->
+  <path d="M95 68 C92 72 85 78 78 82 C74 84 68 86 64 87 C66 88 72 88 78 86 C85 83 93 77 98 72 C100 69 100 66 98 65 C97 64 96 66 95 68Z"
+        fill="#d4a59a" opacity="0.7"/>
+
+  <!-- Heart shine -->
+  <ellipse cx="50" cy="45" rx="6" ry="8" fill="white" opacity="0.25" transform="rotate(-15 50 45)"/>
+</svg>

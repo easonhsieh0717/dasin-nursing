@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getOverdueClockRecords, getPushSubscriptionsByUserIds } from '@/lib/db';
+import { supabase, isSupabase } from '@/lib/supabase';
 import webpush from 'web-push';
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -66,11 +67,46 @@ export async function GET(request: Request) {
       }
     }
 
+    // === 代墊費用圖片自動清理（核准超過 30 天）===
+    let cleanedImages = 0;
+    if (isSupabase) {
+      try {
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: expiredExpenses } = await supabase
+          .from('advance_expenses')
+          .select('id, image_url')
+          .eq('status', 'approved')
+          .lt('reviewed_at', thirtyDaysAgo)
+          .not('image_url', 'is', null)
+          .neq('image_url', '');
+
+        if (expiredExpenses && expiredExpenses.length > 0) {
+          for (const exp of expiredExpenses) {
+            try {
+              // 從 storage 刪除圖片
+              const storagePath = exp.image_url;
+              if (storagePath && !storagePath.startsWith('data:')) {
+                await supabase.storage.from('expense-images').remove([storagePath]);
+              }
+              // 清除 DB 中的 image_url
+              await supabase.from('advance_expenses').update({ image_url: '' }).eq('id', exp.id);
+              cleanedImages++;
+            } catch (e) {
+              console.error('Image cleanup error for expense', exp.id, e);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Image cleanup query error:', e);
+      }
+    }
+
     return NextResponse.json({
       message: '推播通知已處理',
       overdueCount: overdueRecords.length,
       sent,
       failed,
+      cleanedImages,
     });
   } catch (err) {
     console.error('Check overdue error:', err);

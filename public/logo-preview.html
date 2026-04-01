@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logo 選擇</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Noto Sans TC", sans-serif;
+    background: linear-gradient(180deg, #fdf8f6 0%, #fce8e4 100%);
+    background-attachment: fixed;
+    color: #4a3733;
+    padding: 24px 16px;
+    min-height: 100vh;
+  }
+  h1 { text-align: center; font-size: 22px; color: #e8776f; margin-bottom: 8px; }
+  .subtitle { text-align: center; color: #8b7b76; font-size: 14px; margin-bottom: 32px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(180,120,100,0.08);
+    border: 2px solid #f0ddd8;
+    text-align: center;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .card:hover {
+    border-color: #e8776f;
+    box-shadow: 0 4px 20px rgba(232,119,111,0.2);
+  }
+  .card img {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 16px;
+    display: block;
+  }
+  .card .label {
+    font-size: 18px;
+    font-weight: 700;
+    color: #4a3733;
+    margin-bottom: 4px;
+  }
+  .card .desc {
+    font-size: 13px;
+    color: #8b7b76;
+  }
+  /* Login preview */
+  .login-preview {
+    margin-top: 12px;
+    background: linear-gradient(180deg, #fdf8f6, #fce8e4);
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid #f0ddd8;
+  }
+  .login-preview img { width: 56px; height: 56px; margin-bottom: 6px; }
+  .login-preview .title { font-size: 15px; font-weight: 700; color: #4a3733; }
+  .login-preview .ver { font-size: 11px; color: #b0a09a; }
+</style>
+</head>
+<body>
+  <h1>Logo 風格選擇</h1>
+  <p class="subtitle">請選擇一款喜歡的風格，告訴我 A / B / C / D</p>
+
+  <div class="grid">
+    <div class="card">
+      <img src="/logo-a.svg" alt="A">
+      <div class="label">A — 簡約柔和</div>
+      <div class="desc">粉色圓底 + 愛心 + 雙手托護</div>
+      <div class="login-preview">
+        <img src="/logo-a.svg" alt="">
+        <div class="title">達心特護打卡系統</div>
+        <div class="ver">v4.16</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <img src="/logo-b.svg" alt="B">
+      <div class="label">B — 線條醫護</div>
+      <div class="desc">描邊愛心 + 弧線雙手 + 十字符號</div>
+      <div class="login-preview">
+        <img src="/logo-b.svg" alt="">
+        <div class="title">達心特護打卡系統</div>
+        <div class="ver">v4.16</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <img src="/logo-c.svg" alt="C">
+      <div class="label">C — 漸層守護</div>
+      <div class="desc">漸層愛心 + 環繞弧線 + 星點點綴</div>
+      <div class="login-preview">
+        <img src="/logo-c.svg" alt="">
+        <div class="title">達心特護打卡系統</div>
+        <div class="ver">v4.16</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <img src="/logo-d.svg" alt="D">
+      <div class="label">D — 極簡大器</div>
+      <div class="desc">無背景圓 + 大愛心 + 手掌輪廓</div>
+      <div class="login-preview">
+        <img src="/logo-d.svg" alt="">
+        <div class="title">達心特護打卡系統</div>
+        <div class="ver">v4.16</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

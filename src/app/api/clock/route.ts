@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { createClockRecord, findOpenClockRecord, findAnyOpenClockRecord, updateClockRecord, getCases, getRateSettings, getSpecialConditions, getUserById } from '@/lib/db';
-import { calculateSalary, getSpecialMultiplier } from '@/lib/utils';
+import { createClockRecord, findOpenClockRecord, findAnyOpenClockRecord, updateClockRecord, getUserById, getCases } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
@@ -44,6 +43,7 @@ export async function POST(request: Request) {
         clockOutLng: null,
         salary: 0,
         paidAt: null,
+        billing: 0, nurseSalary: 0, dayHours: 0, nightHours: 0,
       });
 
       return NextResponse.json({ success: true, record });
@@ -68,18 +68,20 @@ export async function POST(request: Request) {
 
       const clockOutTime = new Date().toISOString();
 
-      // 計算請款金額並存入資料庫（salary 欄位存的是客戶請款金額，特護薪資 = 請款 × 0.9，在顯示時計算）
-      let salary = 0;
+      // 計算請款金額並存入資料庫
+      let billingResult = { billing: 0, nurseSalary: 0, dayHours: 0, nightHours: 0 };
       try {
-        const allRates = await getRateSettings(session.orgId);
-        const latestRate = allRates.sort((a, b) =>
-          new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime()
-        )[0];
-        const dayRate = latestRate?.mainDayRate ?? 490;
-        const nightRate = latestRate?.mainNightRate ?? 530;
-        const specialConditions = await getSpecialConditions(session.orgId);
-        const multiplier = getSpecialMultiplier(openRecord.clockInTime, clockOutTime, specialConditions);
-        salary = calculateSalary(openRecord.clockInTime, clockOutTime, dayRate, nightRate, multiplier);
+        const { computeBilling, loadBillingContext } = await import('@/lib/billing');
+        const ctx = await loadBillingContext(session.orgId);
+        const targetCase = ctx.cases.find(c => c.id === openRecord!.caseId);
+        const nurse = await getUserById(session.userId);
+        billingResult = computeBilling(
+          openRecord.clockInTime, clockOutTime, 0,
+          targetCase?.caseType || '主要地區',
+          targetCase?.remoteSubsidy ?? false,
+          ctx.latestRate, ctx.specialConditions,
+          nurse?.hourlyRate ?? 0,
+        );
       } catch {
         // 薪資計算失敗不影響打卡
       }
@@ -88,7 +90,11 @@ export async function POST(request: Request) {
         clockOutTime,
         clockOutLat: lat || null,
         clockOutLng: lng || null,
-        salary,
+        salary: billingResult.billing,
+        billing: billingResult.billing,
+        nurseSalary: billingResult.nurseSalary,
+        dayHours: billingResult.dayHours,
+        nightHours: billingResult.nightHours,
       });
 
       return NextResponse.json({ success: true, record: updated });

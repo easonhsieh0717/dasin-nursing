@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getClockRecords, enrichRecords, getRateSettings, getSpecialConditions } from '@/lib/db';
-import { calculateSalary, getSpecialMultiplier, calculateNurseSalary } from '@/lib/utils';
+import { getClockRecords, enrichRecords } from '@/lib/db';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 
@@ -39,33 +38,15 @@ export async function GET(request: Request) {
     const userName = searchParams.get('userName') || undefined;
 
     const records = await getClockRecords(session.orgId, {
-      startTime, endTime, clockType, settlementType, caseCode, caseName, userName
+      startTime, endTime, clockType, settlementType, caseCode, caseName, userName, fetchAll: true
     });
     const enriched = await enrichRecords(records);
 
-    // 取得最新費率設定
-    const allRates = await getRateSettings(session.orgId);
-    const latestRate = allRates.sort((a, b) =>
-      new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime()
-    )[0];
-    const specialConditions = await getSpecialConditions(session.orgId);
-
-    const dayRate = latestRate?.mainDayRate ?? 490;
-    const nightRate = latestRate?.mainNightRate ?? 530;
-
-    // 按上班時間排序
-    const sorted = [...enriched].sort((a, b) => {
+    // 按上班時間排序，使用預算值
+    const computed = [...enriched].sort((a, b) => {
       const ta = a.clockInTime ? new Date(a.clockInTime).getTime() : 0;
       const tb = b.clockInTime ? new Date(b.clockInTime).getTime() : 0;
       return ta - tb;
-    });
-
-    // 計算每筆請款金額
-    const computed = sorted.map(r => {
-      const multiplier = getSpecialMultiplier(r.clockInTime, r.clockOutTime, specialConditions);
-      const billing = calculateSalary(r.clockInTime, r.clockOutTime, dayRate, nightRate, multiplier);
-      const nurseSalary = calculateNurseSalary(billing);
-      return { ...r, billing, nurseSalary, multiplier };
     });
 
     // ========== 按個案分組 ==========
