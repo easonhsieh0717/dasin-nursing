@@ -103,9 +103,10 @@ export async function GET(request: Request) {
 
   .images-section { margin-top: 24px; }
   .images-section h2 { font-size: 16px; color: #d4635b; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
-  .img-item { margin-bottom: 20px; page-break-inside: avoid; }
-  .img-label { font-size: 12px; color: #666; margin-bottom: 6px; font-weight: 600; }
-  .img-item img { max-width: 100%; max-height: 400px; border: 1px solid #ddd; border-radius: 4px; }
+  .img-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .img-item { page-break-inside: avoid; }
+  .img-label { font-size: 11px; color: #666; margin-bottom: 4px; font-weight: 600; }
+  .img-item img { width: 100%; max-height: 300px; object-fit: contain; border: 1px solid #ddd; border-radius: 4px; }
 
   .footer { margin-top: 30px; text-align: right; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 8px; }
 
@@ -157,7 +158,9 @@ export async function GET(request: Request) {
   ${imageItems ? `
   <div class="images-section">
     <h2>收據附件</h2>
-    ${imageItems}
+    <div class="img-grid">
+      ${imageItems}
+    </div>
   </div>` : ''}
 
   <div class="footer">達心特護打卡系統 — 代墊費用報表</div>
