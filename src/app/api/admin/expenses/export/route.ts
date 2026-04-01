@@ -104,10 +104,10 @@ export async function GET(request: Request) {
 
   .images-section { margin-top: 24px; }
   .images-section h2 { font-size: 16px; color: #d4635b; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
-  .img-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .img-item { page-break-inside: avoid; }
-  .img-label { font-size: 11px; color: #666; margin-bottom: 4px; font-weight: 600; }
-  .img-item img { width: 100%; max-height: 300px; object-fit: contain; border: 1px solid #ddd; border-radius: 4px; }
+  .img-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+  .img-item { page-break-inside: avoid; overflow: hidden; }
+  .img-label { font-size: 10px; color: #666; margin-bottom: 4px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .img-item img { display: block; width: 100%; height: 220px; object-fit: cover; border: 1px solid #ddd; border-radius: 4px; }
 
   .footer { margin-top: 30px; text-align: right; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 8px; }
 
@@ -118,6 +118,7 @@ export async function GET(request: Request) {
   @media print {
     .no-print { display: none; }
     body { padding: 0; }
+    .img-grid { grid-template-columns: 1fr 1fr; }
     .img-item { page-break-inside: avoid; }
   }
 </style>
