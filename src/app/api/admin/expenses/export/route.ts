@@ -14,11 +14,12 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
+    const caseId = searchParams.get('caseId') || undefined;
     const status = searchParams.get('status') || undefined;
     const startDate = searchParams.get('startDate') || undefined;
     const endDate = searchParams.get('endDate') || undefined;
 
-    const requests = await getAdvanceExpenses(session.orgId, { status, startDate, endDate });
+    const requests = await getAdvanceExpenses(session.orgId, { caseId, status, startDate, endDate });
 
     // Enrich with user/case names + signed image URLs
     let enriched: (typeof requests[0] & { userName?: string; caseName?: string })[] = requests;
@@ -47,6 +48,15 @@ export async function GET(request: Request) {
     const total = enriched.reduce((s, r) => s + r.amount, 0);
     const today = new Date().toISOString().slice(0, 10);
     const dateRange = startDate && endDate ? `${startDate} ~ ${endDate}` : startDate ? `${startDate} 起` : endDate ? `至 ${endDate}` : '全部';
+
+    // Get case name for header if filtered by caseId
+    let caseName = '';
+    if (caseId && isSupabase) {
+      const { data: caseData } = await supabase.from('cases').select('name, code').eq('id', caseId).single();
+      if (caseData) caseName = `${caseData.name}（${caseData.code}）`;
+    } else if (caseId && enriched.length > 0) {
+      caseName = (enriched[0] as { caseName?: string }).caseName || '';
+    }
 
     // Build printable HTML with embedded images
     const rows = enriched.map((r, i) => `
@@ -80,7 +90,8 @@ export async function GET(request: Request) {
   body { font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif; color: #333; padding: 20px; }
 
   .header { text-align: center; margin-bottom: 24px; border-bottom: 2px solid #d4635b; padding-bottom: 16px; }
-  .header h1 { font-size: 22px; color: #d4635b; margin-bottom: 6px; }
+  .header h1 { font-size: 22px; color: #d4635b; margin-bottom: 4px; }
+  .header .case-name { font-size: 17px; font-weight: 600; color: #333; margin-bottom: 4px; }
   .header .meta { font-size: 13px; color: #666; }
 
   table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 13px; }
@@ -116,6 +127,7 @@ export async function GET(request: Request) {
 
   <div class="header">
     <h1>代墊費用明細</h1>
+    ${caseName ? `<div class="case-name">個案：${caseName}</div>` : ''}
     <div class="meta">期間：${dateRange}　|　匯出日期：${today}　|　共 ${enriched.length} 筆　|　合計 NT$ ${total.toLocaleString()}</div>
   </div>
 

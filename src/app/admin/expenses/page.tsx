@@ -5,6 +5,7 @@ import { useToast } from '@/components/Toast';
 import { Search, Check, X, Wallet, FileText, Trash2 } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
+import CaseSearchInput from '@/components/CaseSearchInput';
 
 interface ExpenseItem {
   id: string; userId: string; caseId: string; expenseType: string;
@@ -13,21 +14,31 @@ interface ExpenseItem {
   userName?: string; caseName?: string;
 }
 
+interface CaseItem { id: string; name: string; code: string; }
+
 const TYPE_LABELS: Record<string, string> = { meal: '餐費', transport: '車資', advance: '代墊費', other: '其它' };
 
 export default function AdminExpensesPage() {
   const toast = useToast();
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
+  const [cases, setCases] = useState<CaseItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('pending');
+  const [filterCaseId, setFilterCaseId] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [previewImage, setPreviewImage] = useState('');
+
+  // Load cases for the search input
+  useEffect(() => {
+    fetch('/api/cases').then(r => r.json()).then(d => setCases(d.data || [])).catch(() => {});
+  }, []);
 
   const fetchExpenses = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      if (filterCaseId) params.set('caseId', filterCaseId);
       if (filterStatus) params.set('status', filterStatus);
       if (filterStartDate) params.set('startDate', filterStartDate);
       if (filterEndDate) params.set('endDate', filterEndDate);
@@ -70,6 +81,7 @@ export default function AdminExpensesPage() {
 
   const handleExport = () => {
     const params = new URLSearchParams();
+    if (filterCaseId) params.set('caseId', filterCaseId);
     if (filterStatus) params.set('status', filterStatus);
     if (filterStartDate) params.set('startDate', filterStartDate);
     if (filterEndDate) params.set('endDate', filterEndDate);
@@ -104,6 +116,14 @@ export default function AdminExpensesPage() {
 
       {/* 篩選 */}
       <div className="warm-card p-3 mb-4 flex flex-wrap items-center gap-2">
+        <CaseSearchInput
+          cases={cases}
+          value={filterCaseId}
+          onChange={setFilterCaseId}
+          placeholder="選擇個案"
+          showCode
+          className="min-w-[160px]"
+        />
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
           className="px-2 py-1 border border-[var(--color-primary-border)] rounded text-sm">
           <option value="">全部狀態</option>
