@@ -72,12 +72,13 @@ export async function GET(request: Request) {
       </tr>`).join('');
 
     // Image section: group images per expense
-    const imageItems = enriched
-      .filter(r => r.imageUrl)
-      .map((r, i) => `
+    const withImages = enriched.filter(r => r.imageUrl && r.imageUrl.trim() !== '');
+    console.log(`[Export] Total: ${enriched.length}, With images: ${withImages.length}, imageUrls:`, enriched.map(r => r.imageUrl || '(empty)'));
+    const imageItems = withImages
+      .map((r) => `
         <div class="img-item">
-          <div class="img-label">#${enriched.indexOf(r) + 1} ${r.expenseDate} / ${r.userName || ''} / ${TYPE_LABELS[r.expenseType] || r.expenseType} / NT$ ${r.amount.toLocaleString()}</div>
-          <img src="${r.imageUrl}" alt="收據 ${i + 1}" />
+          <div class="img-label">#${enriched.indexOf(r) + 1} ${r.expenseDate} / ${(r as { userName?: string }).userName || ''} / ${TYPE_LABELS[r.expenseType] || r.expenseType} / NT$ ${r.amount.toLocaleString()}</div>
+          <img src="${r.imageUrl}" alt="收據" />
         </div>`).join('');
 
     const html = `<!DOCTYPE html>
