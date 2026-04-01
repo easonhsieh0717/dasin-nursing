@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getAdvanceExpenses } from '@/lib/db';
 import { supabase, isSupabase } from '@/lib/supabase';
-import * as XLSX from 'xlsx';
 
 const TYPE_LABELS: Record<string, string> = { meal: '餐費', transport: '車資', advance: '代墊費', other: '其它' };
 const STATUS_LABELS: Record<string, string> = { pending: '待審核', approved: '已通過', rejected: '已拒絕' };
@@ -21,8 +20,8 @@ export async function GET(request: Request) {
 
     const requests = await getAdvanceExpenses(session.orgId, { status, startDate, endDate });
 
-    // Enrich with user/case names
-    let enriched = requests;
+    // Enrich with user/case names + signed image URLs
+    let enriched: (typeof requests[0] & { userName?: string; caseName?: string })[] = requests;
     if (isSupabase && requests.length > 0) {
       const userIds = [...new Set(requests.map(r => r.userId))];
       const caseIds = [...new Set(requests.map(r => r.caseId))];
@@ -45,40 +44,116 @@ export async function GET(request: Request) {
       }));
     }
 
-    // Build Excel
-    const wb = XLSX.utils.book_new();
-    const data: (string | number)[][] = [
-      ['日期', '特護', '個案', '費用類型', '金額', '說明', '圖片連結', '狀態'],
-    ];
+    const total = enriched.reduce((s, r) => s + r.amount, 0);
+    const today = new Date().toISOString().slice(0, 10);
+    const dateRange = startDate && endDate ? `${startDate} ~ ${endDate}` : startDate ? `${startDate} 起` : endDate ? `至 ${endDate}` : '全部';
 
-    let total = 0;
-    for (const r of enriched) {
-      data.push([
-        r.expenseDate,
-        (r as { userName?: string }).userName || '',
-        (r as { caseName?: string }).caseName || '',
-        TYPE_LABELS[r.expenseType] || r.expenseType,
-        r.amount,
-        r.description || '',
-        r.imageUrl || '無',
-        STATUS_LABELS[r.status] || r.status,
-      ]);
-      total += r.amount;
-    }
-    data.push(['合計', '', '', '', total, '', '', '']);
+    // Build printable HTML with embedded images
+    const rows = enriched.map((r, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${r.expenseDate}</td>
+        <td>${r.userName || ''}</td>
+        <td>${r.caseName || ''}</td>
+        <td>${TYPE_LABELS[r.expenseType] || r.expenseType}</td>
+        <td class="amount">NT$ ${r.amount.toLocaleString()}</td>
+        <td>${r.description || '—'}</td>
+        <td>${STATUS_LABELS[r.status] || r.status}</td>
+      </tr>`).join('');
 
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 20 }, { wch: 50 }, { wch: 8 }];
-    XLSX.utils.book_append_sheet(wb, ws, '代墊費用');
+    // Image section: group images per expense
+    const imageItems = enriched
+      .filter(r => r.imageUrl)
+      .map((r, i) => `
+        <div class="img-item">
+          <div class="img-label">#${enriched.indexOf(r) + 1} ${r.expenseDate} / ${r.userName || ''} / ${TYPE_LABELS[r.expenseType] || r.expenseType} / NT$ ${r.amount.toLocaleString()}</div>
+          <img src="${r.imageUrl}" alt="收據 ${i + 1}" />
+        </div>`).join('');
 
-    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-    const fileName = `代墊費用_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const html = `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>代墊費用明細_${today}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif; color: #333; padding: 20px; }
 
-    return new Response(Buffer.from(buf), {
-      headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
-      },
+  .header { text-align: center; margin-bottom: 24px; border-bottom: 2px solid #d4635b; padding-bottom: 16px; }
+  .header h1 { font-size: 22px; color: #d4635b; margin-bottom: 6px; }
+  .header .meta { font-size: 13px; color: #666; }
+
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 13px; }
+  th { background: #f9e8e5; color: #333; padding: 8px 6px; border: 1px solid #ddd; text-align: center; font-weight: 600; }
+  td { padding: 7px 6px; border: 1px solid #ddd; text-align: center; }
+  td.amount { text-align: right; font-weight: 600; }
+  .total-row { background: #fdf5f3; font-weight: 700; }
+  .total-row td { border-top: 2px solid #d4635b; }
+
+  .images-section { margin-top: 24px; }
+  .images-section h2 { font-size: 16px; color: #d4635b; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+  .img-item { margin-bottom: 20px; page-break-inside: avoid; }
+  .img-label { font-size: 12px; color: #666; margin-bottom: 6px; font-weight: 600; }
+  .img-item img { max-width: 100%; max-height: 400px; border: 1px solid #ddd; border-radius: 4px; }
+
+  .footer { margin-top: 30px; text-align: right; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 8px; }
+
+  .no-print { text-align: center; margin-bottom: 20px; }
+  .no-print button { padding: 10px 30px; background: #d4635b; color: white; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; font-weight: 600; }
+  .no-print button:hover { background: #c0544d; }
+
+  @media print {
+    .no-print { display: none; }
+    body { padding: 0; }
+    .img-item { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+  <div class="no-print">
+    <button onclick="window.print()">列印 / 儲存 PDF</button>
+  </div>
+
+  <div class="header">
+    <h1>代墊費用明細</h1>
+    <div class="meta">期間：${dateRange}　|　匯出日期：${today}　|　共 ${enriched.length} 筆　|　合計 NT$ ${total.toLocaleString()}</div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:30px">#</th>
+        <th>日期</th>
+        <th>特護</th>
+        <th>個案</th>
+        <th>類型</th>
+        <th>金額</th>
+        <th>說明</th>
+        <th>狀態</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows}
+      <tr class="total-row">
+        <td colspan="5">合計</td>
+        <td class="amount">NT$ ${total.toLocaleString()}</td>
+        <td colspan="2"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  ${imageItems ? `
+  <div class="images-section">
+    <h2>收據附件</h2>
+    ${imageItems}
+  </div>` : ''}
+
+  <div class="footer">達心特護打卡系統 — 代墊費用報表</div>
+</body>
+</html>`;
+
+    return new Response(html, {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
   } catch (err) {
     console.error('Expenses export error:', err);

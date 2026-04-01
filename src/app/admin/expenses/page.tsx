@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useToast } from '@/components/Toast';
-import { Search, Check, X, Wallet, Download, Trash2 } from 'lucide-react';
+import { Search, Check, X, Wallet, FileText, Trash2 } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
 
@@ -68,33 +68,12 @@ export default function AdminExpensesPage() {
     } catch { toast.error('系統錯誤'); }
   };
 
-  const handleExport = async () => {
+  const handleExport = () => {
     const params = new URLSearchParams();
     if (filterStatus) params.set('status', filterStatus);
     if (filterStartDate) params.set('startDate', filterStartDate);
     if (filterEndDate) params.set('endDate', filterEndDate);
-    try {
-      const res = await fetch(`/api/admin/expenses/export?${params}`);
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        toast.error(d.error || '匯出失敗');
-        return;
-      }
-      const blob = await res.blob();
-      const cd = res.headers.get('Content-Disposition') || '';
-      const match = cd.match(/filename="?([^"]+)"?/);
-      const fileName = match ? decodeURIComponent(match[1]) : `代墊費用_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error('匯出失敗，請稍後再試');
-    }
+    window.open(`/api/admin/expenses/export?${params}`, '_blank');
   };
 
   const pendingCount = expenses.filter(e => e.status === 'pending').length;
@@ -143,7 +122,7 @@ export default function AdminExpensesPage() {
         </button>
         <button onClick={handleExport}
           className="px-4 py-2 btn-success text-white rounded-xl font-bold text-sm flex items-center gap-1">
-          <Download size={16} />匯出
+          <FileText size={16} />匯出 PDF
         </button>
       </div>
 
