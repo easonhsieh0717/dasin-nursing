@@ -30,17 +30,25 @@ export async function GET(request: Request) {
       const { data: cases } = await supabase.from('cases').select('id, name').in('id', caseIds);
       const userMap = new Map((users || []).map((u: { id: string; name: string }) => [u.id, u.name]));
       const caseMap = new Map((cases || []).map((c: { id: string; name: string }) => [c.id, c.name]));
-      enriched = requests.map(r => ({
-        ...r,
-        userName: userMap.get(r.userId) || '未知',
-        caseName: caseMap.get(r.caseId) || '未知',
+      enriched = await Promise.all(requests.map(async (r) => {
+        let imageUrl = r.imageUrl;
+        if (imageUrl && !imageUrl.startsWith('data:') && !imageUrl.startsWith('http')) {
+          const { data: signedData } = await supabase.storage.from('expense-images').createSignedUrl(imageUrl, 7 * 24 * 3600);
+          imageUrl = signedData?.signedUrl || imageUrl;
+        }
+        return {
+          ...r,
+          imageUrl,
+          userName: userMap.get(r.userId) || '未知',
+          caseName: caseMap.get(r.caseId) || '未知',
+        };
       }));
     }
 
     // Build Excel
     const wb = XLSX.utils.book_new();
     const data: (string | number)[][] = [
-      ['日期', '特護', '個案', '費用類型', '金額', '說明', '狀態'],
+      ['日期', '特護', '個案', '費用類型', '金額', '說明', '圖片連結', '狀態'],
     ];
 
     let total = 0;
@@ -52,14 +60,15 @@ export async function GET(request: Request) {
         TYPE_LABELS[r.expenseType] || r.expenseType,
         r.amount,
         r.description || '',
+        r.imageUrl || '無',
         STATUS_LABELS[r.status] || r.status,
       ]);
       total += r.amount;
     }
-    data.push(['合計', '', '', '', total, '', '']);
+    data.push(['合計', '', '', '', total, '', '', '']);
 
     const ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 20 }, { wch: 8 }];
+    ws['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 20 }, { wch: 50 }, { wch: 8 }];
     XLSX.utils.book_append_sheet(wb, ws, '代墊費用');
 
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
