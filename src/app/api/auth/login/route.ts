@@ -1,43 +1,24 @@
 import { NextResponse } from 'next/server';
 import { authenticateUser, getOrgByCode, authenticateAdmin } from '@/lib/db';
 import { createToken } from '@/lib/auth';
-
-// ===== Rate Limiting =====
-const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const MAX_ATTEMPTS = 5;
-const attempts = new Map<string, { count: number; firstAttempt: number }>();
+import { checkRateLimit, clearRateLimit } from '@/lib/rate-limiter';
 
 function getClientIP(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for');
   return forwarded?.split(',')[0]?.trim() || 'unknown';
 }
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = attempts.get(ip);
-  if (!record || now - record.firstAttempt > LOGIN_WINDOW_MS) {
-    attempts.set(ip, { count: 1, firstAttempt: now });
-    return true;
-  }
-  record.count++;
-  return record.count <= MAX_ATTEMPTS;
-}
-
-// Cleanup stale entries periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, record] of attempts) {
-    if (now - record.firstAttempt > LOGIN_WINDOW_MS) attempts.delete(ip);
-  }
-}, 60 * 1000);
-
 export async function POST(request: Request) {
-  // Rate limit check
+  // Rate limit check (Supabase-backed in production, memory in dev)
   const ip = getClientIP(request);
-  if (!checkRateLimit(ip)) {
+  const { allowed, remaining } = await checkRateLimit(ip);
+  if (!allowed) {
     return NextResponse.json(
       { error: '登入嘗試次數過多，請 15 分鐘後再試' },
-      { status: 429 }
+      {
+        status: 429,
+        headers: { 'Retry-After': '900', 'X-RateLimit-Remaining': '0' },
+      }
     );
   }
 
@@ -69,7 +50,7 @@ export async function POST(request: Request) {
     });
 
     // Clear rate limit on success
-    attempts.delete(ip);
+    await clearRateLimit(ip);
 
     const response = NextResponse.json({
       success: true,
@@ -84,6 +65,7 @@ export async function POST(request: Request) {
       path: '/',
     });
 
+    response.headers.set('X-RateLimit-Remaining', String(remaining));
     return response;
   }
 
@@ -107,7 +89,7 @@ export async function POST(request: Request) {
   });
 
   // Clear rate limit on success
-  attempts.delete(ip);
+  await clearRateLimit(ip);
 
   const response = NextResponse.json({
     success: true,
@@ -122,5 +104,6 @@ export async function POST(request: Request) {
     path: '/',
   });
 
+  response.headers.set('X-RateLimit-Remaining', String(remaining));
   return response;
 }

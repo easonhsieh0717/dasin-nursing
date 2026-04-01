@@ -36,7 +36,18 @@ interface DB { organizations: Organization[]; users: User[]; cases: Case[]; cloc
 
 function generateId(): string { return Date.now().toString(36) + Math.random().toString(36).substring(2, 9); }
 
-// In-memory cache for Vercel serverless (no persistent filesystem)
+// ===== Production guard: require Supabase =====
+// On Vercel (production), JSON fallback is unreliable due to ephemeral filesystem.
+// Fail fast if Supabase is not configured in production/Vercel environments.
+if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && !isSupabase) {
+  throw new Error(
+    'FATAL: Supabase is required in production/Vercel. ' +
+    'Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables. ' +
+    'JSON file fallback is only for local development.'
+  );
+}
+
+// In-memory cache for local development only (no persistent filesystem on Vercel)
 let memoryDB: DB | null = null;
 
 function getInitialData(): DB {
