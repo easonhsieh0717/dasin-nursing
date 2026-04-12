@@ -9,6 +9,15 @@ import { SkeletonCard, SkeletonTable } from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
 import Spinner from '@/components/Spinner';
 import { ClipboardList, Search } from 'lucide-react';
+import { roundClockIn, roundClockOut, fmtRoundedTime } from '@/lib/utils';
+
+/** 計算整點/半點時間區間 (e.g. "0800-2000") */
+function getRoundedTimeRange(clockIn: string | null, clockOut: string | null): string {
+  if (!clockIn || !clockOut) return '';
+  const inR = roundClockIn(new Date(clockIn));
+  const outR = roundClockOut(new Date(clockOut));
+  return `${fmtRoundedTime(inR.hours, inR.minutes)}-${fmtRoundedTime(outR.hours, outR.minutes)}`;
+}
 
 interface Record {
   id: string;
@@ -245,6 +254,11 @@ export default function RecordsPage() {
                   下班：{r.clockOutTime ? formatDateTime(r.clockOutTime) : <span className="text-[var(--color-primary)]">值班中</span>}
                   {r.clockOutLat != null && <span> · <CoordsLink lat={r.clockOutLat} lng={r.clockOutLng} /></span>}
                 </div>
+                {r.clockOutTime && (
+                  <div className="text-xs font-bold text-[var(--color-primary)] mb-1">
+                    {getRoundedTimeRange(r.clockInTime, r.clockOutTime)}
+                  </div>
+                )}
                 <div className="flex items-center gap-2 text-xs flex-wrap">
                   <span>薪資 <span className="font-bold text-[var(--color-success)]">{r.calculatedSalary ?? '—'}</span></span>
                   {r.multiplier && r.multiplier > 1 && <span className="text-[var(--color-danger)] font-bold">{r.multiplier}x</span>}
@@ -270,6 +284,7 @@ export default function RecordsPage() {
               <th>下班經緯度</th>
               <th>上班時間</th>
               <th>下班時間</th>
+              <th>計費時段</th>
               <th>特護薪資</th>
               <th>倍率</th>
               <th>操作</th>
@@ -287,6 +302,7 @@ export default function RecordsPage() {
                   <td className="text-xs"><CoordsLink lat={r.clockOutLat} lng={r.clockOutLng} /></td>
                   <td>{formatDateTime(r.clockInTime)}</td>
                   <td>{formatDateTime(r.clockOutTime)}</td>
+                  <td className="font-bold text-[var(--color-primary)]">{getRoundedTimeRange(r.clockInTime, r.clockOutTime)}</td>
                   <td>
                     <span className="font-bold text-[var(--color-success)]">{r.calculatedSalary ?? ''}</span>
                     {r.calculatedSalary != null && r.calculatedSalary > 0 && (
@@ -320,10 +336,10 @@ export default function RecordsPage() {
               );
             })}
             {loading && (
-              <SkeletonTable rows={5} columns={9} />
+              <SkeletonTable rows={5} columns={10} />
             )}
             {!loading && records.length === 0 && (
-              <tr><td colSpan={9}><EmptyState icon={ClipboardList} title="尚無紀錄" /></td></tr>
+              <tr><td colSpan={10}><EmptyState icon={ClipboardList} title="尚無紀錄" /></td></tr>
             )}
           </tbody>
         </table>

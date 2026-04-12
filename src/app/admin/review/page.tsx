@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/components/Toast';
-import { Search, CheckSquare } from 'lucide-react';
+import { Search, CheckSquare, ClipboardCheck } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
 
@@ -37,6 +37,22 @@ function formatDT(s: string | null): string {
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
+interface PendingRequest {
+  id: string;
+  recordId: string;
+  userId: string;
+  userName: string;
+  caseName: string;
+  caseCode: string;
+  originalClockInTime: string | null;
+  originalClockOutTime: string | null;
+  proposedClockInTime: string | null;
+  proposedClockOutTime: string | null;
+  reason: string;
+  status: string;
+  createdAt: string;
+}
+
 export default function ReviewPage() {
   const toast = useToast();
   const [stats, setStats] = useState<StatRow[]>([]);
@@ -44,6 +60,11 @@ export default function ReviewPage() {
   const [range, setRange] = useState<'week' | 'month' | 'custom'>('month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+
+  // 待簽核
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewingRequest, setReviewingRequest] = useState<PendingRequest | null>(null);
 
   // 展開明細
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -87,7 +108,36 @@ export default function ReviewPage() {
     setLoading(false);
   }, [getDateRange]);
 
+  const fetchPending = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/modification-requests?status=pending');
+      const data = await res.json();
+      setPendingRequests(data.data || []);
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => { fetchStats(); }, [fetchStats]);
+  useEffect(() => { fetchPending(); }, [fetchPending]);
+
+  const handleReview = async (id: string, action: 'approve' | 'reject') => {
+    const msg = action === 'approve' ? '確定同意此修改申請？將自動更新打卡紀錄。' : '確定拒絕此修改申請？';
+    if (!confirm(msg)) return;
+    const res = await fetch('/api/admin/modification-requests', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      toast.error(data.error || '操作失敗');
+      return;
+    }
+    toast.success(action === 'approve' ? '已同意' : '已拒絕');
+    setPendingRequests(prev => prev.filter(r => r.id !== id));
+    setShowReviewModal(false);
+    setReviewingRequest(null);
+    fetchStats();
+  };
 
   const toggleDetail = async (userId: string) => {
     if (expandedUser === userId) {
@@ -116,6 +166,43 @@ export default function ReviewPage() {
 
   return (
     <div className="p-2 sm:p-4">
+      {/* 待簽核修改申請 */}
+      {pendingRequests.length > 0 && (
+        <div className="bg-[var(--color-primary-light)] border-2 border-[var(--color-primary)] rounded-xl mb-4 overflow-hidden">
+          <div className="bg-[var(--color-primary-light)] px-4 py-2 flex items-center gap-2">
+            <span className="text-[var(--color-primary)] font-bold text-lg">⚠</span>
+            <span className="font-bold text-[var(--color-primary)] text-sm">
+              待簽核修改申請（{pendingRequests.length} 筆）
+            </span>
+          </div>
+          <div className="divide-y divide-[var(--color-primary-border)]">
+            {pendingRequests.map(req => (
+              <div key={req.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 bg-white">
+                <div className="flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-bold text-[var(--color-text-primary)]">{req.userName}</span>
+                    <span className="text-[var(--color-text-muted)]">|</span>
+                    <span className="text-[var(--color-text-secondary)]">{req.caseName}</span>
+                    <span className="text-[var(--color-text-muted)]">|</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">{formatDT(req.createdAt)}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    <span className="text-[var(--color-text-secondary)]">上班：<span className="line-through">{formatDT(req.originalClockInTime)}</span> → <span className="font-bold text-[var(--color-primary)]">{formatDT(req.proposedClockInTime)}</span></span>
+                    <span className="text-[var(--color-text-secondary)]">下班：<span className="line-through">{formatDT(req.originalClockOutTime)}</span> → <span className="font-bold text-[var(--color-primary)]">{formatDT(req.proposedClockOutTime)}</span></span>
+                  </div>
+                  <div className="text-xs badge-pending inline-block px-2 py-0.5 rounded">原因：{req.reason}</div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={() => { setReviewingRequest(req); setShowReviewModal(true); }} className="px-3 py-1.5 btn-primary text-white rounded text-sm font-bold flex items-center gap-1"><ClipboardCheck size={14} />審核</button>
+                  <button onClick={() => handleReview(req.id, 'approve')} className="px-3 py-1.5 btn-success text-white rounded text-sm font-bold">同意</button>
+                  <button onClick={() => handleReview(req.id, 'reject')} className="px-3 py-1.5 btn-danger text-white rounded text-sm font-bold">拒絕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-3">簽核報表</h2>
 
       {/* 期間篩選 */}
@@ -291,6 +378,64 @@ export default function ReviewPage() {
         </table>
       </div>
       </div>
+
+      {/* 簽核 Modal */}
+      {showReviewModal && reviewingRequest && (
+        <div className="modal-overlay overflow-y-auto py-4 sm:py-8">
+          <div className="warm-card modal-content p-4 sm:p-6 w-full max-w-lg mx-3 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg sm:text-xl font-bold text-[var(--color-primary)]">簽核修改申請</h2>
+
+            <div className="bg-[var(--color-primary-light)] rounded-xl p-3 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-[var(--color-text-secondary)]">申請人</span>
+                <span className="font-bold">{reviewingRequest.userName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--color-text-secondary)]">個案</span>
+                <span className="font-bold">{reviewingRequest.caseName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--color-text-secondary)]">申請時間</span>
+                <span>{formatDT(reviewingRequest.createdAt)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-[var(--color-primary-light)] p-3 rounded-xl">
+                  <div className="text-xs text-[var(--color-text-muted)] mb-1">原始上班時間</div>
+                  <div className="text-sm font-medium">{formatDT(reviewingRequest.originalClockInTime)}</div>
+                </div>
+                <div className="bg-[var(--color-primary-light)] border border-[var(--color-primary-border)] p-3 rounded-xl">
+                  <div className="text-xs text-[var(--color-primary)] mb-1">建議上班時間</div>
+                  <div className="text-sm font-bold text-[var(--color-primary)]">{formatDT(reviewingRequest.proposedClockInTime)}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-[var(--color-primary-light)] p-3 rounded-xl">
+                  <div className="text-xs text-[var(--color-text-muted)] mb-1">原始下班時間</div>
+                  <div className="text-sm font-medium">{formatDT(reviewingRequest.originalClockOutTime)}</div>
+                </div>
+                <div className="bg-[var(--color-primary-light)] border border-[var(--color-primary-border)] p-3 rounded-xl">
+                  <div className="text-xs text-[var(--color-primary)] mb-1">建議下班時間</div>
+                  <div className="text-sm font-bold text-[var(--color-primary)]">{formatDT(reviewingRequest.proposedClockOutTime)}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="badge-pending rounded-xl p-3">
+              <div className="text-xs font-bold mb-1">修改原因</div>
+              <div className="text-sm text-[var(--color-text-primary)]">{reviewingRequest.reason}</div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => handleReview(reviewingRequest.id, 'approve')} className="px-4 sm:px-5 py-2 btn-success text-white rounded text-sm font-bold">同意</button>
+              <button onClick={() => handleReview(reviewingRequest.id, 'reject')} className="px-4 sm:px-5 py-2 btn-danger text-white rounded text-sm font-bold">拒絕</button>
+              <button onClick={() => { setShowReviewModal(false); setReviewingRequest(null); }} className="px-4 sm:px-5 py-2 bg-[var(--color-text-muted)] text-white rounded hover:opacity-80 text-sm">取消</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

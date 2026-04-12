@@ -1,17 +1,25 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getClockRecords, enrichRecords } from '@/lib/db';
+import { getClockRecords, enrichRecords, getAdvanceExpenses } from '@/lib/db';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 
-/** 格式化時間為 HHmm-HHmm (e.g. "0900-1800") */
+import { roundClockIn, roundClockOut, fmtRoundedTime } from '@/lib/utils';
+
+/** 格式化時間為 HHmm-HHmm，上班進位/下班捨去到整點半點 */
 function fmtTimeRange(inTime: string | null, outTime: string | null): string {
-  const fmt = (s: string | null) => {
-    if (!s) return '';
-    const d = new Date(s);
-    return String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0');
-  };
-  return `${fmt(inTime)}-${fmt(outTime)}`;
+  if (!inTime && !outTime) return '';
+  let inStr = '';
+  let outStr = '';
+  if (inTime) {
+    const { hours, minutes } = roundClockIn(new Date(inTime));
+    inStr = fmtRoundedTime(hours, minutes);
+  }
+  if (outTime) {
+    const { hours, minutes } = roundClockOut(new Date(outTime));
+    outStr = fmtRoundedTime(hours, minutes);
+  }
+  return `${inStr}-${outStr}`;
 }
 
 /** 格式化日期為 MM/DD */
@@ -19,6 +27,13 @@ function fmtDate(dateStr: string | null): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   return String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0');
+}
+
+/** 格式化完整時間 MM/DD HH:mm */
+function fmtFullDateTime(dateStr: string | null): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 export async function GET(request: Request) {
@@ -30,7 +45,9 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const startTime = searchParams.get('startTime') || undefined;
-    const endTime = searchParams.get('endTime') || undefined;
+    // endTime 加上 T23:59:59 確保包含整天（與畫面篩選一致）
+    const rawEnd = searchParams.get('endTime');
+    const endTime = rawEnd && !rawEnd.includes('T') ? `${rawEnd}T23:59:59` : (rawEnd || undefined);
     const clockType = searchParams.get('clockType') as 'in' | 'out' | undefined;
     const settlementType = searchParams.get('settlementType') || undefined;
     const caseCode = searchParams.get('caseCode') || undefined;
@@ -41,6 +58,18 @@ export async function GET(request: Request) {
       startTime, endTime, clockType, settlementType, caseCode, caseName, userName, fetchAll: true
     });
     const enriched = await enrichRecords(records);
+
+    // 取得已通過的代墊費用（同一時間範圍）
+    const expenses = await getAdvanceExpenses(session.orgId, {
+      status: 'approved',
+      startDate: startTime?.slice(0, 10),
+      endDate: rawEnd || undefined,
+    });
+    // 按 userId 彙總代墊費用
+    const expenseByUser = new Map<string, number>();
+    for (const e of expenses) {
+      expenseByUser.set(e.userId, (expenseByUser.get(e.userId) || 0) + e.amount);
+    }
 
     // 按上班時間排序，使用預算值
     const computed = [...enriched].sort((a, b) => {
@@ -68,45 +97,51 @@ export async function GET(request: Request) {
     function buildCaseWorkbook(group: { caseName: string; caseCode: string; records: typeof computed }) {
       const wb = XLSX.utils.book_new();
 
-      // --- Table 1: 簽到明細 (日期, 時間, 簽到人, 金額) ---
+      // --- Table 1: 簽到明細 ---
       const table1Data: (string | number)[][] = [
-        ['日期', '時間', '簽到人', '金額'],
+        ['日期', '計費時段', '簽到人', '上班時間', '下班時間', '請款金額', '特護薪資'],
       ];
       let totalBilling = 0;
+      let totalNurseSalary = 0;
       for (const r of group.records) {
         table1Data.push([
           fmtDate(r.clockInTime),
           fmtTimeRange(r.clockInTime, r.clockOutTime),
           r.userName,
+          fmtFullDateTime(r.clockInTime),
+          fmtFullDateTime(r.clockOutTime),
           r.billing,
+          r.nurseSalary,
         ]);
         totalBilling += r.billing;
+        totalNurseSalary += r.nurseSalary;
       }
       // 總和行
-      table1Data.push(['總和', '', '', totalBilling]);
+      table1Data.push(['總和', '', '', '', '', totalBilling, totalNurseSalary]);
 
       const ws = XLSX.utils.aoa_to_sheet(table1Data);
-      ws['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
+      ws['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 10 }];
 
       // --- Table 2: 特護薪資彙總 (特護, 薪資, 費用, 總計) ---
       // 空兩行後
       const startRow = table1Data.length + 2;
 
-      const nurseSummary = new Map<string, { name: string; salary: number }>();
+      const nurseSummary = new Map<string, { name: string; salary: number; userId: string }>();
       for (const r of group.records) {
         const existing = nurseSummary.get(r.userId);
         if (existing) {
           existing.salary += r.nurseSalary;
         } else {
-          nurseSummary.set(r.userId, { name: r.userName, salary: r.nurseSalary });
+          nurseSummary.set(r.userId, { name: r.userName, salary: r.nurseSalary, userId: r.userId });
         }
       }
 
       const table2Data: (string | number)[][] = [
-        ['特護', '薪資', '費用', '總計'],
+        ['特護', '薪資', '代墊費用', '總計'],
       ];
-      for (const [, { name, salary }] of nurseSummary) {
-        table2Data.push([name, salary, '', salary]);
+      for (const [, { name, salary, userId }] of nurseSummary) {
+        const expense = expenseByUser.get(userId) || 0;
+        table2Data.push([name, salary, expense, salary + expense]);
       }
 
       XLSX.utils.sheet_add_aoa(ws, table2Data, { origin: { r: startRow, c: 0 } });

@@ -156,6 +156,35 @@ export function getDayNightHours(clockIn: string | null, clockOut: string | null
   return { dayHours: Math.floor(dayMin / 30) * 0.5, nightHours: Math.floor(nightMin / 30) * 0.5 };
 }
 
+/**
+ * 上班打卡時間進位到整點/半點（往後推）
+ * 07:31~08:00 → 08:00 | 08:01~08:30 → 08:30 | 08:31~09:00 → 09:00
+ * 已在整點/半點上則不變
+ */
+export function roundClockIn(date: Date): { hours: number; minutes: number } {
+  const h = date.getHours();
+  const m = date.getMinutes();
+  if (m === 0) return { hours: h, minutes: 0 };
+  if (m <= 30) return { hours: h, minutes: 30 };
+  return { hours: (h + 1) % 24, minutes: 0 };
+}
+
+/**
+ * 下班打卡時間捨去到整點/半點（往前推）
+ * 08:00~08:29 → 08:00 | 08:30~08:59 → 08:30
+ */
+export function roundClockOut(date: Date): { hours: number; minutes: number } {
+  const h = date.getHours();
+  const m = date.getMinutes();
+  if (m < 30) return { hours: h, minutes: 0 };
+  return { hours: h, minutes: 30 };
+}
+
+/** 格式化整點/半點時間為 HHmm 字串 */
+export function fmtRoundedTime(hours: number, minutes: number): string {
+  return String(hours).padStart(2, '0') + String(minutes).padStart(2, '0');
+}
+
 export function formatCoords(lat: number | null, lng: number | null): string {
   if (lat === null || lng === null) return '';
   return `${lat}, ${lng}`;

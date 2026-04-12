@@ -269,47 +269,12 @@ export default function AdminRecordsPage() {
 
   return (
     <div className="p-2 sm:p-4">
-      {/* 待審核修改申請區塊 — 直接可操作 */}
-      {modRequests.length > 0 && (
-        <div className="bg-[var(--color-primary-light)] border-2 border-[var(--color-primary)] rounded-xl mb-3 overflow-hidden">
-          <div className="bg-[var(--color-primary-light)] px-4 py-2 flex items-center gap-2">
-            <span className="text-[var(--color-primary)] font-bold text-lg">⚠</span>
-            <span className="font-bold text-[var(--color-primary)] text-sm">
-              待簽核修改申請（{modRequests.length} 筆）
-            </span>
-          </div>
-          <div className="divide-y divide-[var(--color-primary-border)]">
-            {modRequests.map(req => (
-              <div key={req.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                <div className="flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="font-bold text-[var(--color-text-primary)]">{req.userName}</span>
-                    <span className="text-[var(--color-text-muted)]">|</span>
-                    <span className="text-[var(--color-text-secondary)]">{req.caseName}</span>
-                    <span className="text-[var(--color-text-muted)]">|</span>
-                    <span className="text-xs text-[var(--color-text-muted)]">{formatDT(req.createdAt)}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                    <span className="text-[var(--color-text-secondary)]">上班：<span className="line-through">{formatDT(req.originalClockInTime) || '—'}</span> → <span className="font-bold text-[var(--color-primary)]">{formatDT(req.proposedClockInTime) || '—'}</span></span>
-                    <span className="text-[var(--color-text-secondary)]">下班：<span className="line-through">{formatDT(req.originalClockOutTime) || '—'}</span> → <span className="font-bold text-[var(--color-primary)]">{formatDT(req.proposedClockOutTime) || '—'}</span></span>
-                  </div>
-                  <div className="text-xs badge-pending inline-block px-2 py-0.5 rounded">原因：{req.reason}</div>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <button onClick={() => openReviewModal(req)} className="px-3 py-1.5 btn-primary text-white rounded text-sm font-bold flex items-center gap-1"><ClipboardCheck size={14} />審核</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Filters */}
       <div className="warm-card p-3 mb-3 space-y-2">
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          <input type="date" value={startTime} onChange={e => setStartTime(e.target.value)} className="px-2 py-1 border border-[var(--color-primary-border)] rounded text-sm w-[130px]" />
+          <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)} className="px-2 py-1 border border-[var(--color-primary-border)] rounded text-sm w-[180px]" />
           <span className="text-sm">~</span>
-          <input type="date" value={endTime} onChange={e => setEndTime(e.target.value)} className="px-2 py-1 border border-[var(--color-primary-border)] rounded text-sm w-[130px]" />
+          <input type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)} className="px-2 py-1 border border-[var(--color-primary-border)] rounded text-sm w-[180px]" />
           <div className="flex gap-0.5">
             <button onClick={() => setClockType('in')} className={`px-2 py-1 rounded text-xs ${clockType === 'in' ? 'btn-primary text-white' : 'bg-gray-200'}`}>上班</button>
             <button onClick={() => setClockType('out')} className={`px-2 py-1 rounded text-xs ${clockType === 'out' ? 'bg-gray-600 text-white' : 'bg-gray-200'}`}>下班</button>
