@@ -151,14 +151,15 @@ export async function authenticateAdmin(account: string, password: string): Prom
       const newAttempts = (user.loginAttempts || 0) + 1;
       const lockMs = getLockoutDuration(newAttempts);
       const lockedUntil = lockMs ? new Date(Date.now() + lockMs).toISOString() : null;
-      await supabase.from('users').update({ login_attempts: newAttempts, locked_until: lockedUntil }).eq('id', data.id);
+      try { await supabase.from('users').update({ login_attempts: newAttempts, locked_until: lockedUntil }).eq('id', data.id); } catch { /* security columns: migration not yet run */ }
       if (lockedUntil) return { locked: true, lockedUntil };
       return null;
     }
-    // Success: reset attempts
-    const update: Record<string, unknown> = { login_attempts: 0, locked_until: null };
-    if (!isHashed) update.password = await bcrypt.hash(password, 10);
-    await supabase.from('users').update(update).eq('id', data.id);
+    // Success: reset attempts (security columns gracefully degrade if migration not run)
+    if (!isHashed) {
+      await supabase.from('users').update({ password: await bcrypt.hash(password, 10) }).eq('id', data.id);
+    }
+    try { await supabase.from('users').update({ login_attempts: 0, locked_until: null }).eq('id', data.id); } catch { /* security columns: migration not yet run */ }
     const { data: orgData } = await supabase.from('organizations').select('*').eq('id', user.orgId).single();
     if (!orgData) return null;
     return { user, org: { id: orgData.id, code: orgData.code, name: orgData.name }, locked: false, mustChangePassword: !!user.mustChangePassword };
@@ -205,13 +206,15 @@ export async function authenticateUser(orgCode: string, account: string, passwor
       const newAttempts = (user.loginAttempts || 0) + 1;
       const lockMs = getLockoutDuration(newAttempts);
       const lockedUntil = lockMs ? new Date(Date.now() + lockMs).toISOString() : null;
-      await supabase.from('users').update({ login_attempts: newAttempts, locked_until: lockedUntil }).eq('id', data.id);
+      try { await supabase.from('users').update({ login_attempts: newAttempts, locked_until: lockedUntil }).eq('id', data.id); } catch { /* security columns: migration not yet run */ }
       if (lockedUntil) return { locked: true, lockedUntil };
       return null;
     }
-    const update: Record<string, unknown> = { login_attempts: 0, locked_until: null };
-    if (!isHashed) update.password = await bcrypt.hash(password, 10);
-    await supabase.from('users').update(update).eq('id', data.id);
+    // Success: reset attempts (security columns gracefully degrade if migration not run)
+    if (!isHashed) {
+      await supabase.from('users').update({ password: await bcrypt.hash(password, 10) }).eq('id', data.id);
+    }
+    try { await supabase.from('users').update({ login_attempts: 0, locked_until: null }).eq('id', data.id); } catch { /* security columns: migration not yet run */ }
     return { user, locked: false, mustChangePassword: !!user.mustChangePassword };
   }
   const db = readDB();
@@ -276,9 +279,12 @@ export async function createUser(user: Omit<User, 'id'>): Promise<User> {
   const hashedPw = rawPassword.startsWith('$2') ? rawPassword : await bcrypt.hash(rawPassword, 10);
   const mustChange = user.mustChangePassword !== false; // default true for new users
   if (isSupabase) {
-    const insert: Record<string, unknown> = { org_id: user.orgId, name: user.name, account: user.account, password: hashedPw, role: user.role, hourly_rate: user.hourlyRate, bank: user.bank || '', account_no: user.accountNo || '', account_name: user.accountName || '', note: user.note || '', must_change_password: mustChange, login_attempts: 0, locked_until: null };
+    const insert: Record<string, unknown> = { org_id: user.orgId, name: user.name, account: user.account, password: hashedPw, role: user.role, hourly_rate: user.hourlyRate, bank: user.bank || '', account_no: user.accountNo || '', account_name: user.accountName || '', note: user.note || '' };
     if (user.defaultCaseId) insert.default_case_id = user.defaultCaseId;
-    const { data } = await supabase.from('users').insert(insert).select().single();
+    const { data, error } = await supabase.from('users').insert(insert).select().single();
+    if (error) throw error;
+    // Security columns require migration — gracefully degrade if not yet applied
+    try { await supabase.from('users').update({ must_change_password: mustChange, login_attempts: 0, locked_until: null }).eq('id', data.id); } catch { /* security columns: migration not yet run */ }
     return toUser(data);
   }
   const db = readDB(); const n: User = { ...user, password: hashedPw, id: generateId(), mustChangePassword: mustChange, loginAttempts: 0, lockedUntil: null }; db.users.push(n); writeDB(db); return n;
@@ -300,12 +306,17 @@ export async function updateUser(id: string, data: Partial<User>, orgId?: string
     if (data.accountName !== undefined) update.account_name = data.accountName;
     if (data.defaultCaseId !== undefined) update.default_case_id = data.defaultCaseId || null;
     if (data.note !== undefined) update.note = data.note;
-    if (data.mustChangePassword !== undefined) update.must_change_password = data.mustChangePassword;
-    if (data.loginAttempts !== undefined) update.login_attempts = data.loginAttempts;
-    if (data.lockedUntil !== undefined) update.locked_until = data.lockedUntil;
     let q = supabase.from('users').update(update).eq('id', id);
     if (orgId) q = q.eq('org_id', orgId);
     const { data: row } = await q.select().single();
+    // Security columns require migration — update separately and degrade gracefully
+    const secUpdate: Record<string, unknown> = {};
+    if (data.mustChangePassword !== undefined) secUpdate.must_change_password = data.mustChangePassword;
+    if (data.loginAttempts !== undefined) secUpdate.login_attempts = data.loginAttempts;
+    if (data.lockedUntil !== undefined) secUpdate.locked_until = data.lockedUntil;
+    if (Object.keys(secUpdate).length > 0) {
+      try { await supabase.from('users').update(secUpdate).eq('id', id); } catch { /* security columns: migration not yet run */ }
+    }
     return row ? toUser(row) : null;
   }
   const db = readDB(); const idx = db.users.findIndex(u => u.id === id && (!orgId || u.orgId === orgId)); if (idx === -1) return null;
@@ -1124,7 +1135,8 @@ export async function reviewPasswordResetRequest(id: string, action: 'approved' 
       const { data: user } = await supabase.from('users').select('account').eq('id', req.user_id).single();
       if (user) {
         const newPw = await bcrypt.hash(user.account, 10);
-        await supabase.from('users').update({ password: newPw, must_change_password: true, login_attempts: 0, locked_until: null }).eq('id', req.user_id);
+        await supabase.from('users').update({ password: newPw }).eq('id', req.user_id);
+        try { await supabase.from('users').update({ must_change_password: true, login_attempts: 0, locked_until: null }).eq('id', req.user_id); } catch { /* security columns: migration not yet run */ }
       }
     }
     return toPWReset(req);
@@ -1146,7 +1158,8 @@ export async function changeUserPassword(userId: string, currentPassword: string
     const match = await bcrypt.compare(currentPassword, data.password);
     if (!match) return { success: false, error: '目前密碼不正確' };
     const hashed = await bcrypt.hash(newPassword, 10);
-    await supabase.from('users').update({ password: hashed, must_change_password: false, login_attempts: 0, locked_until: null }).eq('id', userId);
+    await supabase.from('users').update({ password: hashed }).eq('id', userId);
+    try { await supabase.from('users').update({ must_change_password: false, login_attempts: 0, locked_until: null }).eq('id', userId); } catch { /* security columns: migration not yet run */ }
     return { success: true };
   }
   const db = readDB(); const user = db.users.find(u => u.id === userId); if (!user) return { success: false, error: '找不到使用者' };
@@ -1162,7 +1175,8 @@ export async function adminResetUserPassword(userId: string, orgId: string): Pro
     const { data } = await supabase.from('users').select('account').eq('id', userId).eq('org_id', orgId).single();
     if (!data) return false;
     const hashed = await bcrypt.hash(data.account, 10);
-    await supabase.from('users').update({ password: hashed, must_change_password: true, login_attempts: 0, locked_until: null }).eq('id', userId);
+    await supabase.from('users').update({ password: hashed }).eq('id', userId);
+    try { await supabase.from('users').update({ must_change_password: true, login_attempts: 0, locked_until: null }).eq('id', userId); } catch { /* security columns: migration not yet run */ }
     return true;
   }
   const db = readDB(); const user = db.users.find(u => u.id === userId && u.orgId === orgId); if (!user) return false;
