@@ -7,6 +7,7 @@ export const createCaseSchema = z.object({
   caseType: z.enum(['主要地區', '其它地區']).default('主要地區'),
   settlementType: z.enum(['週', '月', '半月']).default('週'),
   remoteSubsidy: z.boolean().default(false),
+  rateProfileId: z.string().nullish(),
 });
 
 export const updateCaseSchema = createCaseSchema.partial().extend({
@@ -17,7 +18,7 @@ export const updateCaseSchema = createCaseSchema.partial().extend({
 export const createNurseSchema = z.object({
   name: z.string().min(1, '名稱必填').max(100),
   account: z.string().min(1, '帳號必填').max(100),
-  password: z.string().min(4, '密碼至少 4 個字元').max(100),
+  password: z.string().min(1).max(100).default(''), // empty = use account name as default
   hourlyRate: z.number().min(0).max(100000).default(0),
   bank: z.string().max(200).default(''),
   accountNo: z.string().max(100).default(''),

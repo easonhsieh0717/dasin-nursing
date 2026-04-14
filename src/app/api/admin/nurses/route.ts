@@ -51,8 +51,11 @@ export async function POST(request: Request) {
     const user = await createUser({
       orgId: session.orgId,
       ...parsed.data,
+      // If no password provided, default = account name (db.ts createUser handles this)
+      password: parsed.data.password || parsed.data.account,
       role: 'employee',
       defaultCaseId: parsed.data.defaultCaseId || undefined,
+      mustChangePassword: true,
     });
 
     return NextResponse.json(safeUser(user));

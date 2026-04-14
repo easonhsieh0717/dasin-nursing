@@ -15,7 +15,10 @@ interface CaseItem {
   caseType: string;
   settlementType: string;
   remoteSubsidy: boolean;
+  rateProfileId?: string;
 }
+
+interface RateProfile { id: string; name: string; }
 
 export default function CasesPage() {
   const toast = useToast();
@@ -23,7 +26,12 @@ export default function CasesPage() {
   const [committedSearch, setCommittedSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<CaseItem | null>(null);
-  const [form, setForm] = useState({ name: '', code: '', caseType: '主要地區', settlementType: '週', remoteSubsidy: false });
+  const [form, setForm] = useState({ name: '', code: '', caseType: '主要地區', settlementType: '週', remoteSubsidy: false, rateProfileId: '' });
+  const [rateProfiles, setRateProfiles] = useState<RateProfile[]>([]);
+
+  useEffect(() => {
+    fetch('/api/admin/rate-profiles').then(r => r.json()).then(d => setRateProfiles(d.data || []));
+  }, []);
 
   // Dropdown search
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
@@ -89,18 +97,20 @@ export default function CasesPage() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ name: '', code: '', caseType: '主要地區', settlementType: '週', remoteSubsidy: false });
+    setForm({ name: '', code: '', caseType: '主要地區', settlementType: '週', remoteSubsidy: false, rateProfileId: '' });
     setShowModal(true);
   };
 
   const openEdit = (c: CaseItem) => {
     setEditing(c);
-    setForm({ name: c.name, code: c.code, caseType: c.caseType, settlementType: c.settlementType, remoteSubsidy: c.remoteSubsidy });
+    setForm({ name: c.name, code: c.code, caseType: c.caseType, settlementType: c.settlementType, remoteSubsidy: c.remoteSubsidy, rateProfileId: c.rateProfileId || '' });
     setShowModal(true);
   };
 
   const handleSave = async () => {
-    const body = editing ? { id: editing.id, ...form } : form;
+    const body = editing
+      ? { id: editing.id, ...form, rateProfileId: form.rateProfileId || null }
+      : { ...form, rateProfileId: form.rateProfileId || null };
     const res = await fetch('/api/admin/cases', {
       method: editing ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -270,6 +280,22 @@ export default function CasesPage() {
                   <option value="週">週</option>
                   <option value="月">月</option>
                   <option value="半月">半月</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  彈性費率方案
+                  <span className="ml-1 text-xs font-normal text-[var(--color-text-muted)]">（選填，未設定則用標準費率）</span>
+                </label>
+                <select
+                  value={form.rateProfileId}
+                  onChange={e => setForm({...form, rateProfileId: e.target.value})}
+                  className="w-full px-3 py-2 border border-[var(--color-primary-border)] rounded"
+                >
+                  <option value="">— 使用標準費率 —</option>
+                  {rateProfiles.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
                 </select>
               </div>
             </div>

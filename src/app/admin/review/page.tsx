@@ -53,6 +53,14 @@ interface PendingRequest {
   createdAt: string;
 }
 
+interface PasswordResetRow {
+  id: string;
+  userId: string;
+  userName: string;
+  status: string;
+  createdAt: string;
+}
+
 export default function ReviewPage() {
   const toast = useToast();
   const [stats, setStats] = useState<StatRow[]>([]);
@@ -61,10 +69,13 @@ export default function ReviewPage() {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
 
-  // 待簽核
+  // 待簽核打卡修改
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewingRequest, setReviewingRequest] = useState<PendingRequest | null>(null);
+
+  // 密碼重設申請
+  const [pwResetRequests, setPwResetRequests] = useState<PasswordResetRow[]>([]);
 
   // 展開明細
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -116,8 +127,33 @@ export default function ReviewPage() {
     } catch { /* ignore */ }
   }, []);
 
+  const fetchPwResets = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/password-reset-requests?status=pending');
+      const data = await res.json();
+      setPwResetRequests(data.data || []);
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => { fetchStats(); }, [fetchStats]);
-  useEffect(() => { fetchPending(); }, [fetchPending]);
+  useEffect(() => { fetchPending(); fetchPwResets(); }, [fetchPending, fetchPwResets]);
+
+  const handlePwReset = async (id: string, action: 'approved' | 'rejected') => {
+    const msg = action === 'approved' ? '確定同意密碼重設？將重設密碼為帳號名稱，並要求下次登入修改。' : '確定拒絕此密碼重設申請？';
+    if (!confirm(msg)) return;
+    const res = await fetch('/api/admin/password-reset-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      toast.error(data.error || '操作失敗');
+      return;
+    }
+    toast.success(action === 'approved' ? '已同意，密碼已重設' : '已拒絕');
+    setPwResetRequests(prev => prev.filter(r => r.id !== id));
+  };
 
   const handleReview = async (id: string, action: 'approve' | 'reject') => {
     const msg = action === 'approve' ? '確定同意此修改申請？將自動更新打卡紀錄。' : '確定拒絕此修改申請？';
@@ -196,6 +232,34 @@ export default function ReviewPage() {
                   <button onClick={() => { setReviewingRequest(req); setShowReviewModal(true); }} className="px-3 py-1.5 btn-primary text-white rounded text-sm font-bold flex items-center gap-1"><ClipboardCheck size={14} />審核</button>
                   <button onClick={() => handleReview(req.id, 'approve')} className="px-3 py-1.5 btn-success text-white rounded text-sm font-bold">同意</button>
                   <button onClick={() => handleReview(req.id, 'reject')} className="px-3 py-1.5 btn-danger text-white rounded text-sm font-bold">拒絕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 密碼重設申請 */}
+      {pwResetRequests.length > 0 && (
+        <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl mb-4 overflow-hidden">
+          <div className="px-4 py-2 flex items-center gap-2 bg-yellow-50">
+            <span className="text-yellow-600 font-bold text-lg">🔑</span>
+            <span className="font-bold text-yellow-700 text-sm">密碼重設申請（{pwResetRequests.length} 筆）</span>
+          </div>
+          <div className="divide-y divide-yellow-200">
+            {pwResetRequests.map(req => (
+              <div key={req.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 bg-white">
+                <div className="flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-bold text-[var(--color-text-primary)]">{req.userName}</span>
+                    <span className="text-[var(--color-text-muted)]">|</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">{formatDT(req.createdAt)}</span>
+                  </div>
+                  <div className="text-xs text-[var(--color-text-secondary)]">申請將密碼重設為帳號預設值</div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={() => handlePwReset(req.id, 'approved')} className="px-3 py-1.5 btn-success text-white rounded text-sm font-bold">同意重設</button>
+                  <button onClick={() => handlePwReset(req.id, 'rejected')} className="px-3 py-1.5 btn-danger text-white rounded text-sm font-bold">拒絕</button>
                 </div>
               </div>
             ))}

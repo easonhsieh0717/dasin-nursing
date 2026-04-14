@@ -32,7 +32,9 @@ export default function LoginPage() {
         return;
       }
 
-      if (data.user.role === 'admin') {
+      if (data.mustChangePassword) {
+        router.push('/change-password');
+      } else if (data.user.role === 'admin') {
         router.push('/admin/records');
       } else {
         router.push('/clock');

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { FileText, CheckSquare, Users, UserCog, Wallet, Receipt, CreditCard, BarChart3, AlertTriangle, Settings, LogOut } from 'lucide-react';
+import { FileText, CheckSquare, Users, UserCog, Wallet, Receipt, CreditCard, BarChart3, AlertTriangle, Settings, Layers, LogOut } from 'lucide-react';
 
 const navItems = [
   { label: '紀錄', path: '/admin/records', icon: FileText },
@@ -14,6 +14,7 @@ const navItems = [
   { label: '發放', path: '/admin/payroll', icon: CreditCard },
   { label: '報表', path: '/admin/dashboard', icon: BarChart3 },
   { label: '特殊狀況', path: '/admin/special', icon: AlertTriangle },
+  { label: '費率方案', path: '/admin/rate-profiles', icon: Layers },
   { label: '費率', path: '/admin/settings', icon: Settings },
 ];
 

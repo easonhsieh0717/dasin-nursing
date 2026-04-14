@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     const parsed = parseBody(createCaseSchema, body);
     if (!parsed.data) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
-    const newCase = await createCase({ orgId: session.orgId, ...parsed.data });
+    const newCase = await createCase({ orgId: session.orgId, ...parsed.data, rateProfileId: parsed.data.rateProfileId ?? undefined });
     return NextResponse.json(newCase);
   } catch (err) {
     console.error('Cases POST error:', err);
@@ -63,7 +63,8 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const parsed = parseBody(updateCaseSchema, body);
     if (!parsed.data) return NextResponse.json({ error: parsed.error }, { status: 400 });
-    const { id, ...data } = parsed.data;
+    const { id, ...rest } = parsed.data;
+    const data = { ...rest, rateProfileId: rest.rateProfileId ?? undefined };
     const updated = await updateCase(id, data, session.orgId);
     if (!updated) {
       return NextResponse.json({ error: '找不到個案' }, { status: 404 });

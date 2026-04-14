@@ -8,6 +8,14 @@ function getClientIP(request: Request): string {
   return forwarded?.split(',')[0]?.trim() || 'unknown';
 }
 
+function formatLockMessage(lockedUntil: string): string {
+  const diff = new Date(lockedUntil).getTime() - Date.now();
+  if (diff <= 0) return '帳號已鎖定，請稍後再試';
+  const mins = Math.ceil(diff / 60000);
+  if (mins < 60) return `帳號已鎖定，請 ${mins} 分鐘後再試`;
+  return `帳號已鎖定，請 1 小時後再試`;
+}
+
 export async function POST(request: Request) {
   // Rate limit check (Supabase-backed in production, memory in dev)
   const ip = getClientIP(request);
@@ -39,22 +47,26 @@ export async function POST(request: Request) {
     if (!result) {
       return NextResponse.json({ error: '帳號或密碼錯誤，一般特護請填寫代碼' }, { status: 401 });
     }
+    if (result.locked) {
+      return NextResponse.json({ error: formatLockMessage(result.lockedUntil) }, { status: 401 });
+    }
 
-    const { user, org } = result;
+    const { user, org, mustChangePassword } = result;
     const token = await createToken({
       userId: user.id,
       orgId: user.orgId,
       orgCode: org.code,
       name: user.name,
       role: user.role,
+      mustChangePassword,
     });
 
-    // Clear rate limit on success
     await clearRateLimit(ip);
 
     const response = NextResponse.json({
       success: true,
       user: { name: user.name, role: user.role },
+      mustChangePassword,
     });
 
     response.cookies.set('token', token, {
@@ -75,25 +87,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '代碼錯誤' }, { status: 401 });
   }
 
-  const user = await authenticateUser(code, account, password);
-  if (!user) {
+  const result = await authenticateUser(code, account, password);
+  if (!result) {
     return NextResponse.json({ error: '帳號或密碼錯誤' }, { status: 401 });
   }
+  if (result.locked) {
+    return NextResponse.json({ error: formatLockMessage(result.lockedUntil) }, { status: 401 });
+  }
 
+  const { user, mustChangePassword } = result;
   const token = await createToken({
     userId: user.id,
     orgId: user.orgId,
     orgCode: org.code,
     name: user.name,
     role: user.role,
+    mustChangePassword,
   });
 
-  // Clear rate limit on success
   await clearRateLimit(ip);
 
   const response = NextResponse.json({
     success: true,
     user: { name: user.name, role: user.role },
+    mustChangePassword,
   });
 
   response.cookies.set('token', token, {

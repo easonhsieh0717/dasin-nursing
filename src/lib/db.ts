@@ -10,8 +10,11 @@ const DB_PATH = isVercel
 
 // ===== Types =====
 export interface Organization { id: string; code: string; name: string; }
-export interface User { id: string; orgId: string; name: string; account: string; password: string; role: 'admin' | 'employee'; hourlyRate: number; bank?: string; accountNo?: string; accountName?: string; defaultCaseId?: string; note?: string; }
-export interface Case { id: string; orgId: string; name: string; code: string; caseType: string; settlementType: string; remoteSubsidy: boolean; }
+export interface User { id: string; orgId: string; name: string; account: string; password: string; role: 'admin' | 'employee'; hourlyRate: number; bank?: string; accountNo?: string; accountName?: string; defaultCaseId?: string; note?: string; mustChangePassword?: boolean; loginAttempts?: number; lockedUntil?: string | null; }
+export interface Case { id: string; orgId: string; name: string; code: string; caseType: string; settlementType: string; remoteSubsidy: boolean; rateProfileId?: string; }
+export interface RateProfile { id: string; orgId: string; name: string; }
+export interface RatePeriod { id: string; profileId: string; startTime: string; endTime: string; billingRate: number; nurseRate: number; sortOrder: number; }
+export interface PasswordResetRequest { id: string; orgId: string; userId: string; userName?: string; status: 'pending' | 'approved' | 'rejected'; reviewedBy: string | null; reviewedAt: string | null; createdAt: string; }
 export interface ClockRecord { id: string; orgId: string; userId: string; caseId: string; clockInTime: string | null; clockInLat: number | null; clockInLng: number | null; clockOutTime: string | null; clockOutLat: number | null; clockOutLng: number | null; salary: number; paidAt: string | null; billing: number; nurseSalary: number; dayHours: number; nightHours: number; }
 export interface SpecialCondition { id: string; orgId: string; name: string; target: string; multiplier: number; startTime: string; endTime: string; }
 export interface RateSettings { id: string; orgId: string; effectiveDate: string; label: string; mainDayRate: number; mainNightRate: number; otherDayRate: number; otherNightRate: number; fullDayRate24h: number; minBillingHours: number; remoteAreaSubsidy: number; dialysisVisitFee: number; dialysisOvertimeRate: number; }
@@ -21,8 +24,11 @@ export interface AdvanceExpense { id: string; orgId: string; userId: string; cas
 
 // ===== Supabase row mappers =====
 /* eslint-disable @typescript-eslint/no-explicit-any */
-function toUser(r: any): User { return { id: r.id, orgId: r.org_id, name: r.name, account: r.account, password: r.password, role: r.role, hourlyRate: Number(r.hourly_rate), bank: r.bank || '', accountNo: r.account_no || '', accountName: r.account_name || '', defaultCaseId: r.default_case_id || undefined, note: r.note || '' }; }
-function toCase(r: any): Case { return { id: r.id, orgId: r.org_id, name: r.name, code: r.code, caseType: r.case_type, settlementType: r.settlement_type, remoteSubsidy: !!r.remote_subsidy }; }
+function toUser(r: any): User { return { id: r.id, orgId: r.org_id, name: r.name, account: r.account, password: r.password, role: r.role, hourlyRate: Number(r.hourly_rate), bank: r.bank || '', accountNo: r.account_no || '', accountName: r.account_name || '', defaultCaseId: r.default_case_id || undefined, note: r.note || '', mustChangePassword: !!r.must_change_password, loginAttempts: Number(r.login_attempts || 0), lockedUntil: r.locked_until || null }; }
+function toCase(r: any): Case { return { id: r.id, orgId: r.org_id, name: r.name, code: r.code, caseType: r.case_type, settlementType: r.settlement_type, remoteSubsidy: !!r.remote_subsidy, rateProfileId: r.rate_profile_id || undefined }; }
+function toRateProfile(r: any): RateProfile { return { id: r.id, orgId: r.org_id, name: r.name }; }
+function toRatePeriod(r: any): RatePeriod { return { id: r.id, profileId: r.profile_id, startTime: r.start_time, endTime: r.end_time, billingRate: Number(r.billing_rate), nurseRate: Number(r.nurse_rate), sortOrder: Number(r.sort_order || 0) }; }
+function toPWReset(r: any): PasswordResetRequest { return { id: r.id, orgId: r.org_id, userId: r.user_id, status: r.status, reviewedBy: r.reviewed_by, reviewedAt: r.reviewed_at, createdAt: r.created_at }; }
 function toRecord(r: any): ClockRecord { return { id: r.id, orgId: r.org_id, userId: r.user_id, caseId: r.case_id, clockInTime: r.clock_in_time, clockInLat: r.clock_in_lat, clockInLng: r.clock_in_lng, clockOutTime: r.clock_out_time, clockOutLat: r.clock_out_lat, clockOutLng: r.clock_out_lng, salary: Number(r.salary), paidAt: r.paid_at || null, billing: Number(r.billing || 0), nurseSalary: Number(r.nurse_salary || 0), dayHours: Number(r.day_hours || 0), nightHours: Number(r.night_hours || 0) }; }
 function toSC(r: any): SpecialCondition { return { id: r.id, orgId: r.org_id, name: r.name, target: r.target, multiplier: Number(r.multiplier), startTime: r.start_time, endTime: r.end_time }; }
 function toRS(r: any): RateSettings { return { id: r.id, orgId: r.org_id, effectiveDate: r.effective_date, label: r.label, mainDayRate: Number(r.main_day_rate), mainNightRate: Number(r.main_night_rate), otherDayRate: Number(r.other_day_rate), otherNightRate: Number(r.other_night_rate), fullDayRate24h: Number(r.full_day_rate_24h), minBillingHours: Number(r.min_billing_hours), remoteAreaSubsidy: Number(r.remote_area_subsidy), dialysisVisitFee: Number(r.dialysis_visit_fee), dialysisOvertimeRate: Number(r.dialysis_overtime_rate) }; }
@@ -32,7 +38,7 @@ function toAdvExp(r: any): AdvanceExpense { return { id: r.id, orgId: r.org_id, 
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 // ===== Local JSON fallback =====
-interface DB { organizations: Organization[]; users: User[]; cases: Case[]; clockRecords: ClockRecord[]; specialConditions: SpecialCondition[]; rateSettings: RateSettings[]; modificationRequests: ModificationRequest[]; receipts: Receipt[]; advanceExpenses: AdvanceExpense[]; }
+interface DB { organizations: Organization[]; users: User[]; cases: Case[]; clockRecords: ClockRecord[]; specialConditions: SpecialCondition[]; rateSettings: RateSettings[]; modificationRequests: ModificationRequest[]; receipts: Receipt[]; advanceExpenses: AdvanceExpense[]; rateProfiles?: RateProfile[]; ratePeriods?: RatePeriod[]; passwordResetRequests?: PasswordResetRequest[]; }
 
 function generateId(): string { return Date.now().toString(36) + Math.random().toString(36).substring(2, 9); }
 
@@ -114,63 +120,123 @@ export async function getOrgByCode(code: string): Promise<Organization | undefin
 }
 
 // ===== Users =====
+// iPhone-style lockout schedule
+function getLockoutDuration(attempts: number): number | null {
+  if (attempts < 6) return null;
+  if (attempts === 6) return 1 * 60 * 1000;    // 1 min
+  if (attempts === 7) return 5 * 60 * 1000;    // 5 min
+  if (attempts === 8) return 15 * 60 * 1000;   // 15 min
+  return 60 * 60 * 1000;                        // 1 hr (9+)
+}
+
+export type AuthResult =
+  | { user: User; org: Organization; locked: false; mustChangePassword: boolean }
+  | { locked: true; lockedUntil: string }
+  | null;
+
 // 管理員不需要代碼即可登入
-export async function authenticateAdmin(account: string, password: string): Promise<{ user: User; org: Organization } | null> {
+export async function authenticateAdmin(account: string, password: string): Promise<AuthResult> {
   if (isSupabase) {
     const { data } = await supabase.from('users').select('*').eq('account', account).eq('role', 'admin').single();
     if (!data) return null;
+    const user = toUser(data);
+    // Check lockout
+    if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+      return { locked: true, lockedUntil: user.lockedUntil };
+    }
     const stored = data.password as string;
     const isHashed = stored.startsWith('$2');
     const match = isHashed ? await bcrypt.compare(password, stored) : (password === stored);
-    if (!match) return null;
-    // Auto-migrate plaintext → bcrypt
-    if (!isHashed) {
-      const hashed = await bcrypt.hash(password, 10);
-      await supabase.from('users').update({ password: hashed }).eq('id', data.id);
+    if (!match) {
+      const newAttempts = (user.loginAttempts || 0) + 1;
+      const lockMs = getLockoutDuration(newAttempts);
+      const lockedUntil = lockMs ? new Date(Date.now() + lockMs).toISOString() : null;
+      await supabase.from('users').update({ login_attempts: newAttempts, locked_until: lockedUntil }).eq('id', data.id);
+      if (lockedUntil) return { locked: true, lockedUntil };
+      return null;
     }
-    const user = toUser(data);
+    // Success: reset attempts
+    const update: Record<string, unknown> = { login_attempts: 0, locked_until: null };
+    if (!isHashed) update.password = await bcrypt.hash(password, 10);
+    await supabase.from('users').update(update).eq('id', data.id);
     const { data: orgData } = await supabase.from('organizations').select('*').eq('id', user.orgId).single();
     if (!orgData) return null;
-    return { user, org: { id: orgData.id, code: orgData.code, name: orgData.name } };
+    return { user, org: { id: orgData.id, code: orgData.code, name: orgData.name }, locked: false, mustChangePassword: !!user.mustChangePassword };
   }
   const db = readDB();
   const candidate = db.users.find(u => u.account === account && u.role === 'admin');
   if (!candidate) return null;
+  if (candidate.lockedUntil && new Date(candidate.lockedUntil) > new Date()) {
+    return { locked: true, lockedUntil: candidate.lockedUntil };
+  }
   const isHashed = candidate.password.startsWith('$2');
   const match = isHashed ? await bcrypt.compare(password, candidate.password) : (password === candidate.password);
-  if (!match) return null;
-  if (!isHashed) { candidate.password = await bcrypt.hash(password, 10); writeDB(db); }
+  if (!match) {
+    const newAttempts = (candidate.loginAttempts || 0) + 1;
+    const lockMs = getLockoutDuration(newAttempts);
+    candidate.loginAttempts = newAttempts;
+    candidate.lockedUntil = lockMs ? new Date(Date.now() + lockMs).toISOString() : null;
+    writeDB(db);
+    if (candidate.lockedUntil) return { locked: true, lockedUntil: candidate.lockedUntil };
+    return null;
+  }
+  candidate.loginAttempts = 0; candidate.lockedUntil = null;
+  if (!isHashed) { candidate.password = await bcrypt.hash(password, 10); }
+  writeDB(db);
   const org = db.organizations.find(o => o.id === candidate.orgId);
   if (!org) return null;
-  return { user: candidate, org };
+  return { user: candidate, org, locked: false, mustChangePassword: !!candidate.mustChangePassword };
 }
 
-export async function authenticateUser(orgCode: string, account: string, password: string): Promise<User | null> {
+export async function authenticateUser(orgCode: string, account: string, password: string): Promise<{ user: User; locked: false; mustChangePassword: boolean } | { locked: true; lockedUntil: string } | null> {
   if (isSupabase) {
     const { data: org } = await supabase.from('organizations').select('id').eq('code', orgCode).single();
     if (!org) return null;
     const { data } = await supabase.from('users').select('*').eq('org_id', org.id).eq('account', account).single();
     if (!data) return null;
+    const user = toUser(data);
+    if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+      return { locked: true, lockedUntil: user.lockedUntil };
+    }
     const stored = data.password as string;
     const isHashed = stored.startsWith('$2');
     const match = isHashed ? await bcrypt.compare(password, stored) : (password === stored);
-    if (!match) return null;
-    if (!isHashed) {
-      const hashed = await bcrypt.hash(password, 10);
-      await supabase.from('users').update({ password: hashed }).eq('id', data.id);
+    if (!match) {
+      const newAttempts = (user.loginAttempts || 0) + 1;
+      const lockMs = getLockoutDuration(newAttempts);
+      const lockedUntil = lockMs ? new Date(Date.now() + lockMs).toISOString() : null;
+      await supabase.from('users').update({ login_attempts: newAttempts, locked_until: lockedUntil }).eq('id', data.id);
+      if (lockedUntil) return { locked: true, lockedUntil };
+      return null;
     }
-    return toUser(data);
+    const update: Record<string, unknown> = { login_attempts: 0, locked_until: null };
+    if (!isHashed) update.password = await bcrypt.hash(password, 10);
+    await supabase.from('users').update(update).eq('id', data.id);
+    return { user, locked: false, mustChangePassword: !!user.mustChangePassword };
   }
   const db = readDB();
   const org = db.organizations.find(o => o.code === orgCode);
   if (!org) return null;
   const candidate = db.users.find(u => u.orgId === org.id && u.account === account);
   if (!candidate) return null;
+  if (candidate.lockedUntil && new Date(candidate.lockedUntil) > new Date()) {
+    return { locked: true, lockedUntil: candidate.lockedUntil };
+  }
   const isHashed = candidate.password.startsWith('$2');
   const match = isHashed ? await bcrypt.compare(password, candidate.password) : (password === candidate.password);
-  if (!match) return null;
-  if (!isHashed) { candidate.password = await bcrypt.hash(password, 10); writeDB(db); }
-  return candidate;
+  if (!match) {
+    const newAttempts = (candidate.loginAttempts || 0) + 1;
+    const lockMs = getLockoutDuration(newAttempts);
+    candidate.loginAttempts = newAttempts;
+    candidate.lockedUntil = lockMs ? new Date(Date.now() + lockMs).toISOString() : null;
+    writeDB(db);
+    if (candidate.lockedUntil) return { locked: true, lockedUntil: candidate.lockedUntil };
+    return null;
+  }
+  candidate.loginAttempts = 0; candidate.lockedUntil = null;
+  if (!isHashed) { candidate.password = await bcrypt.hash(password, 10); }
+  writeDB(db);
+  return { user: candidate, locked: false, mustChangePassword: !!candidate.mustChangePassword };
 }
 
 export async function getUserById(id: string): Promise<User | null> {
@@ -205,14 +271,17 @@ export async function getUsers(orgId: string, search?: string, page?: number, pa
 }
 
 export async function createUser(user: Omit<User, 'id'>): Promise<User> {
-  const hashedPw = await bcrypt.hash(user.password, 10);
+  // Default password = account name; force password change on first login
+  const rawPassword = user.password || user.account;
+  const hashedPw = rawPassword.startsWith('$2') ? rawPassword : await bcrypt.hash(rawPassword, 10);
+  const mustChange = user.mustChangePassword !== false; // default true for new users
   if (isSupabase) {
-    const insert: Record<string, unknown> = { org_id: user.orgId, name: user.name, account: user.account, password: hashedPw, role: user.role, hourly_rate: user.hourlyRate, bank: user.bank || '', account_no: user.accountNo || '', account_name: user.accountName || '', note: user.note || '' };
+    const insert: Record<string, unknown> = { org_id: user.orgId, name: user.name, account: user.account, password: hashedPw, role: user.role, hourly_rate: user.hourlyRate, bank: user.bank || '', account_no: user.accountNo || '', account_name: user.accountName || '', note: user.note || '', must_change_password: mustChange, login_attempts: 0, locked_until: null };
     if (user.defaultCaseId) insert.default_case_id = user.defaultCaseId;
     const { data } = await supabase.from('users').insert(insert).select().single();
     return toUser(data);
   }
-  const db = readDB(); const n: User = { ...user, password: hashedPw, id: generateId() }; db.users.push(n); writeDB(db); return n;
+  const db = readDB(); const n: User = { ...user, password: hashedPw, id: generateId(), mustChangePassword: mustChange, loginAttempts: 0, lockedUntil: null }; db.users.push(n); writeDB(db); return n;
 }
 
 export async function updateUser(id: string, data: Partial<User>, orgId?: string): Promise<User | null> {
@@ -231,6 +300,9 @@ export async function updateUser(id: string, data: Partial<User>, orgId?: string
     if (data.accountName !== undefined) update.account_name = data.accountName;
     if (data.defaultCaseId !== undefined) update.default_case_id = data.defaultCaseId || null;
     if (data.note !== undefined) update.note = data.note;
+    if (data.mustChangePassword !== undefined) update.must_change_password = data.mustChangePassword;
+    if (data.loginAttempts !== undefined) update.login_attempts = data.loginAttempts;
+    if (data.lockedUntil !== undefined) update.locked_until = data.lockedUntil;
     let q = supabase.from('users').update(update).eq('id', id);
     if (orgId) q = q.eq('org_id', orgId);
     const { data: row } = await q.select().single();
@@ -247,6 +319,9 @@ export async function updateUser(id: string, data: Partial<User>, orgId?: string
   if (data.accountName !== undefined) safeData.accountName = data.accountName;
   if (data.defaultCaseId !== undefined) safeData.defaultCaseId = data.defaultCaseId;
   if (data.note !== undefined) safeData.note = data.note;
+  if (data.mustChangePassword !== undefined) safeData.mustChangePassword = data.mustChangePassword;
+  if (data.loginAttempts !== undefined) safeData.loginAttempts = data.loginAttempts;
+  if (data.lockedUntil !== undefined) safeData.lockedUntil = data.lockedUntil;
   db.users[idx] = { ...db.users[idx], ...safeData }; writeDB(db); return db.users[idx];
 }
 
@@ -275,7 +350,9 @@ export async function getCases(orgId: string, search?: string): Promise<Case[]> 
 
 export async function createCase(c: Omit<Case, 'id'>): Promise<Case> {
   if (isSupabase) {
-    const { data } = await supabase.from('cases').insert({ org_id: c.orgId, name: c.name, code: c.code, case_type: c.caseType, settlement_type: c.settlementType, remote_subsidy: c.remoteSubsidy ?? false }).select().single();
+    const insert: Record<string, unknown> = { org_id: c.orgId, name: c.name, code: c.code, case_type: c.caseType, settlement_type: c.settlementType, remote_subsidy: c.remoteSubsidy ?? false };
+    if (c.rateProfileId) insert.rate_profile_id = c.rateProfileId;
+    const { data } = await supabase.from('cases').insert(insert).select().single();
     return toCase(data);
   }
   const db = readDB(); const n: Case = { ...c, id: generateId() }; db.cases.push(n); writeDB(db); return n;
@@ -289,6 +366,7 @@ export async function updateCase(id: string, data: Partial<Case>, orgId?: string
     if (data.caseType !== undefined) update.case_type = data.caseType;
     if (data.settlementType !== undefined) update.settlement_type = data.settlementType;
     if (data.remoteSubsidy !== undefined) update.remote_subsidy = data.remoteSubsidy;
+    if (data.rateProfileId !== undefined) update.rate_profile_id = data.rateProfileId || null;
     let q = supabase.from('cases').update(update).eq('id', id);
     if (orgId) q = q.eq('org_id', orgId);
     const { data: row } = await q.select().single();
@@ -932,4 +1010,162 @@ export async function deleteAdvanceExpense(id: string, orgId?: string): Promise<
   db.advanceExpenses.splice(idx, 1);
   writeDB(db);
   return true;
+}
+
+// ===== Rate Profiles (P6) =====
+export async function getRateProfiles(orgId: string): Promise<RateProfile[]> {
+  if (isSupabase) {
+    const { data } = await supabase.from('rate_profiles').select('*').eq('org_id', orgId).order('name');
+    return (data || []).map(toRateProfile);
+  }
+  return (readDB().rateProfiles || []).filter(p => p.orgId === orgId);
+}
+
+export async function createRateProfile(p: Omit<RateProfile, 'id'>): Promise<RateProfile> {
+  if (isSupabase) {
+    const { data } = await supabase.from('rate_profiles').insert({ org_id: p.orgId, name: p.name }).select().single();
+    return toRateProfile(data);
+  }
+  const db = readDB(); if (!db.rateProfiles) db.rateProfiles = [];
+  const n: RateProfile = { ...p, id: generateId() }; db.rateProfiles.push(n); writeDB(db); return n;
+}
+
+export async function updateRateProfile(id: string, data: Partial<RateProfile>, orgId?: string): Promise<RateProfile | null> {
+  if (isSupabase) {
+    const update: Record<string, unknown> = {};
+    if (data.name !== undefined) update.name = data.name;
+    let q = supabase.from('rate_profiles').update(update).eq('id', id);
+    if (orgId) q = q.eq('org_id', orgId);
+    const { data: row } = await q.select().single();
+    return row ? toRateProfile(row) : null;
+  }
+  const db = readDB(); const arr = db.rateProfiles || []; const idx = arr.findIndex(p => p.id === id && (!orgId || p.orgId === orgId)); if (idx === -1) return null;
+  arr[idx] = { ...arr[idx], ...data }; db.rateProfiles = arr; writeDB(db); return arr[idx];
+}
+
+export async function deleteRateProfile(id: string, orgId?: string): Promise<boolean> {
+  if (isSupabase) {
+    // Also delete associated periods
+    await supabase.from('rate_periods').delete().eq('profile_id', id);
+    let q = supabase.from('rate_profiles').delete().eq('id', id);
+    if (orgId) q = q.eq('org_id', orgId);
+    await q; return true;
+  }
+  const db = readDB(); const arr = db.rateProfiles || []; const idx = arr.findIndex(p => p.id === id && (!orgId || p.orgId === orgId)); if (idx === -1) return false;
+  arr.splice(idx, 1); db.rateProfiles = arr; db.ratePeriods = (db.ratePeriods || []).filter(p => p.profileId !== id); writeDB(db); return true;
+}
+
+// ===== Rate Periods =====
+export async function getRatePeriods(profileId: string): Promise<RatePeriod[]> {
+  if (isSupabase) {
+    const { data } = await supabase.from('rate_periods').select('*').eq('profile_id', profileId).order('sort_order');
+    return (data || []).map(toRatePeriod);
+  }
+  return (readDB().ratePeriods || []).filter(p => p.profileId === profileId).sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+export async function getRatePeriodsForProfiles(profileIds: string[]): Promise<RatePeriod[]> {
+  if (!profileIds.length) return [];
+  if (isSupabase) {
+    const { data } = await supabase.from('rate_periods').select('*').in('profile_id', profileIds).order('sort_order');
+    return (data || []).map(toRatePeriod);
+  }
+  return (readDB().ratePeriods || []).filter(p => profileIds.includes(p.profileId)).sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+export async function upsertRatePeriods(profileId: string, periods: Omit<RatePeriod, 'id'>[]): Promise<RatePeriod[]> {
+  if (isSupabase) {
+    await supabase.from('rate_periods').delete().eq('profile_id', profileId);
+    if (!periods.length) return [];
+    const rows = periods.map((p, i) => ({ profile_id: profileId, start_time: p.startTime, end_time: p.endTime, billing_rate: p.billingRate, nurse_rate: p.nurseRate, sort_order: i }));
+    const { data } = await supabase.from('rate_periods').insert(rows).select();
+    return (data || []).map(toRatePeriod);
+  }
+  const db = readDB(); db.ratePeriods = (db.ratePeriods || []).filter(p => p.profileId !== profileId);
+  const created: RatePeriod[] = periods.map((p, i) => ({ ...p, id: generateId(), profileId, sortOrder: i }));
+  db.ratePeriods.push(...created); writeDB(db); return created;
+}
+
+// ===== Password Reset Requests =====
+export async function getPasswordResetRequests(orgId: string, status?: string): Promise<PasswordResetRequest[]> {
+  if (isSupabase) {
+    let q = supabase.from('password_reset_requests').select('*, users!inner(name)').eq('org_id', orgId);
+    if (status) q = q.eq('status', status);
+    q = q.order('created_at', { ascending: false });
+    const { data } = await q;
+    return (data || []).map(r => ({ ...toPWReset(r), userName: r.users?.name || '' }));
+  }
+  const db = readDB(); let reqs = (db.passwordResetRequests || []).filter(r => r.orgId === orgId);
+  if (status) reqs = reqs.filter(r => r.status === status);
+  // Enrich with userName
+  return reqs.map(r => ({ ...r, userName: db.users.find(u => u.id === r.userId)?.name || '' }));
+}
+
+export async function createPasswordResetRequest(orgId: string, userId: string): Promise<PasswordResetRequest> {
+  if (isSupabase) {
+    // Cancel any existing pending request
+    await supabase.from('password_reset_requests').update({ status: 'rejected' }).eq('org_id', orgId).eq('user_id', userId).eq('status', 'pending');
+    const { data } = await supabase.from('password_reset_requests').insert({ org_id: orgId, user_id: userId, status: 'pending' }).select().single();
+    return toPWReset(data);
+  }
+  const db = readDB(); if (!db.passwordResetRequests) db.passwordResetRequests = [];
+  // Cancel existing
+  db.passwordResetRequests.filter(r => r.orgId === orgId && r.userId === userId && r.status === 'pending').forEach(r => { r.status = 'rejected'; });
+  const n: PasswordResetRequest = { id: generateId(), orgId, userId, status: 'pending', reviewedBy: null, reviewedAt: null, createdAt: new Date().toISOString() };
+  db.passwordResetRequests.push(n); writeDB(db); return n;
+}
+
+export async function reviewPasswordResetRequest(id: string, action: 'approved' | 'rejected', reviewedBy: string): Promise<PasswordResetRequest | null> {
+  if (isSupabase) {
+    const { data: req } = await supabase.from('password_reset_requests').update({ status: action, reviewed_by: reviewedBy, reviewed_at: new Date().toISOString() }).eq('id', id).select().single();
+    if (!req) return null;
+    if (action === 'approved') {
+      // Reset password to account name, set mustChangePassword=true
+      const { data: user } = await supabase.from('users').select('account').eq('id', req.user_id).single();
+      if (user) {
+        const newPw = await bcrypt.hash(user.account, 10);
+        await supabase.from('users').update({ password: newPw, must_change_password: true, login_attempts: 0, locked_until: null }).eq('id', req.user_id);
+      }
+    }
+    return toPWReset(req);
+  }
+  const db = readDB(); const arr = db.passwordResetRequests || []; const idx = arr.findIndex(r => r.id === id); if (idx === -1) return null;
+  arr[idx] = { ...arr[idx], status: action, reviewedBy, reviewedAt: new Date().toISOString() };
+  if (action === 'approved') {
+    const user = db.users.find(u => u.id === arr[idx].userId);
+    if (user) { user.password = await bcrypt.hash(user.account, 10); user.mustChangePassword = true; user.loginAttempts = 0; user.lockedUntil = null; }
+  }
+  db.passwordResetRequests = arr; writeDB(db); return arr[idx];
+}
+
+/** Change user's own password (validates current password) */
+export async function changeUserPassword(userId: string, currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+  if (isSupabase) {
+    const { data } = await supabase.from('users').select('account, password').eq('id', userId).single();
+    if (!data) return { success: false, error: '找不到使用者' };
+    const match = await bcrypt.compare(currentPassword, data.password);
+    if (!match) return { success: false, error: '目前密碼不正確' };
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await supabase.from('users').update({ password: hashed, must_change_password: false, login_attempts: 0, locked_until: null }).eq('id', userId);
+    return { success: true };
+  }
+  const db = readDB(); const user = db.users.find(u => u.id === userId); if (!user) return { success: false, error: '找不到使用者' };
+  const match = await bcrypt.compare(currentPassword, user.password);
+  if (!match) return { success: false, error: '目前密碼不正確' };
+  user.password = await bcrypt.hash(newPassword, 10); user.mustChangePassword = false; user.loginAttempts = 0; user.lockedUntil = null;
+  writeDB(db); return { success: true };
+}
+
+/** Admin force-reset user password */
+export async function adminResetUserPassword(userId: string, orgId: string): Promise<boolean> {
+  if (isSupabase) {
+    const { data } = await supabase.from('users').select('account').eq('id', userId).eq('org_id', orgId).single();
+    if (!data) return false;
+    const hashed = await bcrypt.hash(data.account, 10);
+    await supabase.from('users').update({ password: hashed, must_change_password: true, login_attempts: 0, locked_until: null }).eq('id', userId);
+    return true;
+  }
+  const db = readDB(); const user = db.users.find(u => u.id === userId && u.orgId === orgId); if (!user) return false;
+  user.password = await bcrypt.hash(user.account, 10); user.mustChangePassword = true; user.loginAttempts = 0; user.lockedUntil = null;
+  writeDB(db); return true;
 }

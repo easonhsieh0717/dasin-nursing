@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { Clock, ClipboardList, Wallet, BookOpen, LogOut } from 'lucide-react';
+import { Clock, ClipboardList, Wallet, BookOpen, LogOut, KeyRound } from 'lucide-react';
 
 const navItems: { label: string; path: string; icon: typeof Clock; external?: boolean }[] = [
   { label: '打卡', path: '/clock', icon: Clock },
@@ -55,22 +55,41 @@ export default function EmployeeNav() {
           );
         })}
       </div>
-      <button
-        onClick={handleLogout}
-        style={{
-          padding: '8px 16px',
-          color: 'var(--color-text-secondary)',
-          backgroundColor: 'transparent',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          fontSize: 14,
-        }}
-      >
-        <LogOut size={15} />
-        登出
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <button
+          onClick={() => router.push('/change-password')}
+          title="修改密碼"
+          style={{
+            padding: '8px 10px',
+            color: pathname === '/change-password' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+            backgroundColor: 'transparent',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            fontSize: 13,
+          }}
+        >
+          <KeyRound size={15} />
+          <span className="hidden sm:inline">密碼</span>
+        </button>
+        <button
+          onClick={handleLogout}
+          style={{
+            padding: '8px 10px',
+            color: 'var(--color-text-secondary)',
+            backgroundColor: 'transparent',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            fontSize: 14,
+          }}
+        >
+          <LogOut size={15} />
+          <span className="hidden sm:inline">登出</span>
+        </button>
+      </div>
     </nav>
   );
 }

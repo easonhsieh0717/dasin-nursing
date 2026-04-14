@@ -17,6 +17,7 @@ export interface TokenPayload {
   orgCode: string;
   name: string;
   role: 'admin' | 'employee';
+  mustChangePassword?: boolean;
 }
 
 export async function createToken(payload: TokenPayload): Promise<string> {
