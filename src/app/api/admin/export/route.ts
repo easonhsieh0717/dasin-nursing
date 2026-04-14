@@ -6,34 +6,42 @@ import JSZip from 'jszip';
 
 import { roundClockIn, roundClockOut, fmtRoundedTime } from '@/lib/utils';
 
-/** 格式化時間為 HHmm-HHmm，上班進位/下班捨去到整點半點 */
+// Vercel 伺服器跑 UTC，所有輸出一律轉成台灣時間 (UTC+8)
+const TW_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+/** 將 UTC ISO 字串轉換為台灣時間的 Date（用 getUTC* 系列取值） */
+function twDate(isoStr: string): Date {
+  return new Date(new Date(isoStr).getTime() + TW_OFFSET_MS);
+}
+
+/** 格式化時間為 HHmm-HHmm，上班進位/下班捨去到整點半點（台灣時間） */
 function fmtTimeRange(inTime: string | null, outTime: string | null): string {
   if (!inTime && !outTime) return '';
   let inStr = '';
   let outStr = '';
   if (inTime) {
-    const { hours, minutes } = roundClockIn(new Date(inTime));
+    const { hours, minutes } = roundClockIn(twDate(inTime));
     inStr = fmtRoundedTime(hours, minutes);
   }
   if (outTime) {
-    const { hours, minutes } = roundClockOut(new Date(outTime));
+    const { hours, minutes } = roundClockOut(twDate(outTime));
     outStr = fmtRoundedTime(hours, minutes);
   }
   return `${inStr}-${outStr}`;
 }
 
-/** 格式化日期為 MM/DD */
+/** 格式化日期為 MM/DD（台灣時間） */
 function fmtDate(dateStr: string | null): string {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0');
+  const d = twDate(dateStr);
+  return String(d.getUTCMonth() + 1).padStart(2, '0') + '/' + String(d.getUTCDate()).padStart(2, '0');
 }
 
-/** 格式化完整時間 MM/DD HH:mm */
+/** 格式化完整時間 MM/DD HH:mm（台灣時間） */
 function fmtFullDateTime(dateStr: string | null): string {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const d = twDate(dateStr);
+  return `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
 }
 
 export async function GET(request: Request) {
