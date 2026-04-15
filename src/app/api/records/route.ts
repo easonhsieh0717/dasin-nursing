@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getClockRecords, enrichRecords, getUserById, getCases } from '@/lib/db';
+import { getClockRecords, enrichRecords } from '@/lib/db';
 import { paginate } from '@/lib/utils';
 
 export async function GET(request: Request) {
@@ -20,18 +20,7 @@ export async function GET(request: Request) {
       userId: session.role === 'employee' ? session.userId : undefined,
     };
 
-    // 員工只能看到自己 + 自己指派個案的紀錄
-    if (session.role === 'employee') {
-      const user = await getUserById(session.userId);
-      let assignedCaseId = user?.defaultCaseId;
-      if (!assignedCaseId) {
-        const cases = await getCases(session.orgId);
-        assignedCaseId = cases[0]?.id;
-      }
-      if (assignedCaseId) {
-        filters.caseId = assignedCaseId;
-      }
-    }
+    // 員工只能看到自己的紀錄（userId 已過濾，不限個案）
 
     if (startTime) filters.startTime = startTime;
     if (endTime) filters.endTime = endTime;
