@@ -60,7 +60,7 @@ export default function LoginPage() {
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-              代碼 <span className="text-[var(--color-text-muted)] font-normal">（管理員可不填）</span>
+              個案代碼 <span className="text-[var(--color-text-muted)] font-normal">（管理員可不填）</span>
             </label>
             <div className="relative">
               <Hash size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
@@ -68,7 +68,7 @@ export default function LoginPage() {
                 type="text"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="特護請輸入代碼"
+                placeholder="特護請輸入個案代碼"
                 className="w-full pl-10 pr-4 py-2"
                 autoComplete="organization"
               />

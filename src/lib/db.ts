@@ -119,6 +119,20 @@ export async function getOrgByCode(code: string): Promise<Organization | undefin
   return readDB().organizations.find(o => o.code === code);
 }
 
+/** 用個案代碼找所屬機構（特護登入用） */
+export async function getOrgByCaseCode(caseCode: string): Promise<Organization | undefined> {
+  if (isSupabase) {
+    const { data } = await supabase.from('cases').select('org_id').ilike('code', caseCode).limit(1).single();
+    if (!data) return undefined;
+    const { data: org } = await supabase.from('organizations').select('*').eq('id', data.org_id).single();
+    return org ? { id: org.id, code: org.code, name: org.name } : undefined;
+  }
+  const db = readDB();
+  const c = db.cases.find(c => c.code.toLowerCase() === caseCode.toLowerCase());
+  if (!c) return undefined;
+  return db.organizations.find(o => o.id === c.orgId);
+}
+
 // ===== Users =====
 // iPhone-style lockout schedule
 function getLockoutDuration(attempts: number): number | null {

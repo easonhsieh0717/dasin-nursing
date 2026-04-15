@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { authenticateUser, getOrgByCode, authenticateAdmin } from '@/lib/db';
+import { authenticateUser, getOrgByCaseCode, authenticateAdmin } from '@/lib/db';
 import { createToken } from '@/lib/auth';
 import { checkRateLimit, clearRateLimit } from '@/lib/rate-limiter';
 
@@ -81,10 +81,10 @@ export async function POST(request: Request) {
     return response;
   }
 
-  // 一般特護：需要代碼 + 帳號 + 密碼
-  const org = await getOrgByCode(code);
+  // 一般特護：需要個案代碼 + 帳號 + 密碼
+  const org = await getOrgByCaseCode(code);
   if (!org) {
-    return NextResponse.json({ error: '代碼錯誤' }, { status: 401 });
+    return NextResponse.json({ error: '個案代碼錯誤，請確認代碼是否正確' }, { status: 401 });
   }
 
   const result = await authenticateUser(code, account, password);
