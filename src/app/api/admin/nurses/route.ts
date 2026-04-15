@@ -59,8 +59,12 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(safeUser(user));
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('Nurses POST error:', err);
+    // Supabase unique constraint violation (duplicate account)
+    if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === '23505') {
+      return NextResponse.json({ error: '帳號已存在，請使用其他帳號' }, { status: 400 });
+    }
     return NextResponse.json({ error: '新增失敗' }, { status: 500 });
   }
 }
