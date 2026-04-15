@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { createClockRecord, findOpenClockRecord, findAnyOpenClockRecord, updateClockRecord, getUserById, getCases } from '@/lib/db';
+import { createClockRecord, findOpenClockRecord, findAnyOpenClockRecord, updateClockRecord, getUserById } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
@@ -23,12 +23,10 @@ export async function POST(request: Request) {
         );
       }
 
-      // 使用使用者指定的個案
-      const user = await getUserById(session.userId);
-      const cases = await getCases(session.orgId);
-      const targetCaseId = caseId || session.caseId || user?.defaultCaseId || cases[0]?.id;
+      // 個案由登入時的 session.caseId 決定，不允許隨機 fallback
+      const targetCaseId = caseId || session.caseId;
       if (!targetCaseId) {
-        return NextResponse.json({ error: '沒有可用的個案' }, { status: 400 });
+        return NextResponse.json({ error: '請重新登入並選擇個案' }, { status: 400 });
       }
 
       const record = await createClockRecord({

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { findAnyOpenClockRecord, getCases, getUserById } from '@/lib/db';
+import { findAnyOpenClockRecord, getCaseById, getUserById } from '@/lib/db';
 
 export async function GET() {
   try {
@@ -9,22 +9,19 @@ export async function GET() {
       return NextResponse.json({ error: '未登入' }, { status: 401 });
     }
 
-    // 取得使用者資料（含 defaultCaseId）
-    const user = await getUserById(session.userId);
+    // 個案由登入時的 caseId 決定（管理員無 caseId）
+    const assignedCaseId = session.caseId || '';
+    let defaultCaseName = '';
+    let defaultCaseCode = '';
 
-    // 取得個案列表
-    let cases: { id: string; name: string; code: string }[] = [];
-    try {
-      cases = await getCases(session.orgId);
-    } catch {
-      // ignore
+    if (assignedCaseId) {
+      const c = await getCaseById(assignedCaseId);
+      defaultCaseName = c?.name || '';
+      defaultCaseCode = c?.code || '';
     }
 
-    // 優先用登入時選的個案，其次 defaultCaseId，最後第一個
-    const assignedCaseId = session.caseId || user?.defaultCaseId || cases[0]?.id || '';
-    const assignedCase = cases.find(c => c.id === assignedCaseId);
-    const defaultCaseName = assignedCase?.name || cases[0]?.name || '';
-    const defaultCaseCode = assignedCase?.code || cases[0]?.code || '';
+    // 取使用者 account（用於特殊邏輯判斷）
+    const user = await getUserById(session.userId);
 
     const openRecord = await findAnyOpenClockRecord(session.userId);
 
@@ -34,8 +31,8 @@ export async function GET() {
       return NextResponse.json({ isClockedIn: false, defaultCaseName, defaultCaseCode, defaultCaseId: assignedCaseId, account: userAccount });
     }
 
-    const matched = cases.find(c => c.id === openRecord.caseId);
-    const caseName = matched?.name || '';
+    const openCase = await getCaseById(openRecord.caseId);
+    const caseName = openCase?.name || '';
 
     return NextResponse.json({
       isClockedIn: true,

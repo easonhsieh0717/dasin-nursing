@@ -362,6 +362,14 @@ export async function deleteUser(id: string, orgId?: string): Promise<boolean> {
 }
 
 // ===== Cases =====
+export async function getCaseById(id: string): Promise<Case | null> {
+  if (isSupabase) {
+    const { data } = await supabase.from('cases').select('*').eq('id', id).single();
+    return data ? toCase(data) : null;
+  }
+  return readDB().cases.find(c => c.id === id) || null;
+}
+
 export async function getCases(orgId: string, search?: string): Promise<Case[]> {
   if (isSupabase) {
     let q = supabase.from('cases').select('*').eq('org_id', orgId);
