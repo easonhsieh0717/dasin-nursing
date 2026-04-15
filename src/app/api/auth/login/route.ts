@@ -82,10 +82,11 @@ export async function POST(request: Request) {
   }
 
   // 一般特護：需要個案代碼 + 帳號 + 密碼
-  const org = await getOrgByCaseCode(code);
-  if (!org) {
+  const caseResult = await getOrgByCaseCode(code);
+  if (!caseResult) {
     return NextResponse.json({ error: '個案代碼錯誤，請確認代碼是否正確' }, { status: 401 });
   }
+  const { org, caseId: loginCaseId } = caseResult;
 
   const result = await authenticateUser(org.code, account, password);
   if (!result) {
@@ -102,6 +103,7 @@ export async function POST(request: Request) {
     orgCode: org.code,
     name: user.name,
     role: user.role,
+    caseId: loginCaseId,
     mustChangePassword,
   });
 

@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       // 使用使用者指定的個案
       const user = await getUserById(session.userId);
       const cases = await getCases(session.orgId);
-      const targetCaseId = caseId || user?.defaultCaseId || cases[0]?.id;
+      const targetCaseId = caseId || session.caseId || user?.defaultCaseId || cases[0]?.id;
       if (!targetCaseId) {
         return NextResponse.json({ error: '沒有可用的個案' }, { status: 400 });
       }

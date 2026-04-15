@@ -20,8 +20,8 @@ export async function GET() {
       // ignore
     }
 
-    // 使用使用者指定的個案，否則用第一個
-    const assignedCaseId = user?.defaultCaseId || cases[0]?.id || '';
+    // 優先用登入時選的個案，其次 defaultCaseId，最後第一個
+    const assignedCaseId = session.caseId || user?.defaultCaseId || cases[0]?.id || '';
     const assignedCase = cases.find(c => c.id === assignedCaseId);
     const defaultCaseName = assignedCase?.name || cases[0]?.name || '';
     const defaultCaseCode = assignedCase?.code || cases[0]?.code || '';

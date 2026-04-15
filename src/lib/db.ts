@@ -119,18 +119,19 @@ export async function getOrgByCode(code: string): Promise<Organization | undefin
   return readDB().organizations.find(o => o.code === code);
 }
 
-/** 用個案代碼找所屬機構（特護登入用） */
-export async function getOrgByCaseCode(caseCode: string): Promise<Organization | undefined> {
+/** 用個案代碼找所屬機構與個案 ID（特護登入用） */
+export async function getOrgByCaseCode(caseCode: string): Promise<{ org: Organization; caseId: string } | undefined> {
   if (isSupabase) {
-    const { data } = await supabase.from('cases').select('org_id').ilike('code', caseCode).limit(1).single();
+    const { data } = await supabase.from('cases').select('id, org_id').ilike('code', caseCode).limit(1).single();
     if (!data) return undefined;
     const { data: org } = await supabase.from('organizations').select('*').eq('id', data.org_id).single();
-    return org ? { id: org.id, code: org.code, name: org.name } : undefined;
+    return org ? { org: { id: org.id, code: org.code, name: org.name }, caseId: data.id } : undefined;
   }
   const db = readDB();
   const c = db.cases.find(c => c.code.toLowerCase() === caseCode.toLowerCase());
   if (!c) return undefined;
-  return db.organizations.find(o => o.id === c.orgId);
+  const org = db.organizations.find(o => o.id === c.orgId);
+  return org ? { org, caseId: c.id } : undefined;
 }
 
 // ===== Users =====

@@ -17,6 +17,7 @@ export interface TokenPayload {
   orgCode: string;
   name: string;
   role: 'admin' | 'employee';
+  caseId?: string;   // 特護登入時所選的個案 ID
   mustChangePassword?: boolean;
 }
 
