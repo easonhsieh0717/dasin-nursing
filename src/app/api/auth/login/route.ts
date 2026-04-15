@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '個案代碼錯誤，請確認代碼是否正確' }, { status: 401 });
   }
 
-  const result = await authenticateUser(code, account, password);
+  const result = await authenticateUser(org.code, account, password);
   if (!result) {
     return NextResponse.json({ error: '帳號或密碼錯誤' }, { status: 401 });
   }
