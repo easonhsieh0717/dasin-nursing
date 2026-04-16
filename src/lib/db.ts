@@ -300,7 +300,9 @@ export async function createUser(user: Omit<User, 'id'>): Promise<User> {
     if (error) throw error;
     // Security columns require migration — gracefully degrade if not yet applied
     try { await supabase.from('users').update({ must_change_password: mustChange, login_attempts: 0, locked_until: null }).eq('id', data.id); } catch { /* security columns: migration not yet run */ }
-    return toUser(data);
+    const result = toUser(data);
+    result.mustChangePassword = mustChange; // override: INSERT SELECT predates the security UPDATE
+    return result;
   }
   const db = readDB(); const n: User = { ...user, password: hashedPw, id: generateId(), mustChangePassword: mustChange, loginAttempts: 0, lockedUntil: null }; db.users.push(n); writeDB(db); return n;
 }
